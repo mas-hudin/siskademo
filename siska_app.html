@@ -632,6 +632,9 @@
                                 <button onclick="app.siswa.exportCSV()" class="border border-gray-300 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1">
                                     <i class="fa-solid fa-file-export text-emerald-500"></i> <span>Export Excel (CSV)</span>
                                 </button>
+                                <button onclick="app.siswa.syncFromSpreadsheet()" class="border border-green-400 hover:bg-green-50 text-green-700 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1" title="Muat ulang data dari Google Spreadsheet">
+                                    <i class="fa-solid fa-arrows-rotate text-green-600"></i> <span>Sinkronisasi Spreadsheet</span>
+                                </button>
                                 <button onclick="app.navigate('as-bimbingan-tka'); app.bimbinganTka.switchTab('tab-btka-kartu');" class="border border-cyan-500 hover:bg-cyan-50 text-cyan-700 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1">
                                     <i class="fa-solid fa-barcode text-cyan-600"></i> <span>Cetak Kartu Barcode</span>
                                 </button>
@@ -1096,6 +1099,10 @@
                                     <i class="fa-solid fa-id-card"></i>
                                     <span>Cetak Kartu Barcode</span>
                                 </button>
+                                <button type="button" onclick="app.bimbinganTka.switchTab('tab-btka-setting-kartu')" id="btn-tab-btka-setting-kartu" class="btka-tab-btn px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-sliders"></i>
+                                    <span>Pengaturan Kartu</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1331,6 +1338,118 @@
                                 <div class="col-span-full py-12 text-center text-slate-400 italic text-xs">Pilih kelas di atas untuk memuat pratinjau kartu barcode siswa.</div>
                             </div>
                         </div>
+                        </div>
+
+                        <!-- TAB 4: PENGATURAN IDENTITAS KARTU -->
+                        <div id="tab-btka-setting-kartu" class="btka-tab-content hidden mt-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- FORM PENGATURAN -->
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                    <div class="flex items-center space-x-2 mb-5 pb-4 border-b border-gray-100">
+                                        <div class="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center">
+                                            <i class="fa-solid fa-sliders text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-bold text-slate-800">Pengaturan Identitas Kartu Peserta</h3>
+                                            <p class="text-[10px] text-slate-400">Sesuaikan tampilan kartu barcode sesuai kebutuhan sekolah</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Judul Kartu <span class="text-red-400">*</span></label>
+                                            <input type="text" id="kset-judul" placeholder="KARTU PESERTA BIMBINGAN TKA" maxlength="60"
+                                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.previewCardSetting()">
+                                            <p class="text-[10px] text-slate-400 mt-1">Tampil di baris kedua header kartu (maks 60 karakter)</p>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Tahun Ajaran</label>
+                                            <input type="text" id="kset-tahun-ajaran" placeholder="2025/2026" maxlength="20"
+                                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.previewCardSetting()">
+                                            <p class="text-[10px] text-slate-400 mt-1">Akan tampil di bawah nama siswa pada kartu</p>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-600 mb-1.5">Warna Tema Kartu</label>
+                                                <div class="flex items-center space-x-2">
+                                                    <input type="color" id="kset-warna" value="#0ea5e9"
+                                                        class="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" oninput="app.bimbinganTka.previewCardSetting()">
+                                                    <input type="text" id="kset-warna-hex" value="#0ea5e9" maxlength="7" placeholder="#0ea5e9"
+                                                        class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.syncColorInput('hex')">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-600 mb-1.5">Warna Teks Header</label>
+                                                <div class="flex items-center space-x-2">
+                                                    <input type="color" id="kset-warna-teks" value="#ffffff"
+                                                        class="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" oninput="app.bimbinganTka.previewCardSetting()">
+                                                    <input type="text" id="kset-warna-teks-hex" value="#ffffff" maxlength="7" placeholder="#ffffff"
+                                                        class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.syncColorInput('teks')">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Nama Kepala Sekolah / Penanda Tangan</label>
+                                            <input type="text" id="kset-kepsek" placeholder="Drs. Nama Kepala Sekolah, M.Pd." maxlength="60"
+                                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.previewCardSetting()">
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">NIP Kepala Sekolah</label>
+                                            <input type="text" id="kset-nip-kepsek" placeholder="NIP. 196XXXXXXXXX" maxlength="40"
+                                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.previewCardSetting()">
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Catatan Footer Kartu</label>
+                                            <input type="text" id="kset-footer" placeholder="Wajib dibawa setiap mengikuti Bimbingan TKA" maxlength="80"
+                                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.previewCardSetting()">
+                                            <p class="text-[10px] text-slate-400 mt-1">Akan muncul di bagian bawah kartu (opsional, maks 80 karakter)</p>
+                                        </div>
+
+                                        <div class="flex items-center justify-between pt-2 border-t border-gray-100 gap-3">
+                                            <button type="button" onclick="app.bimbinganTka.resetCardSetting()" class="border border-gray-200 hover:bg-gray-50 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1.5">
+                                                <i class="fa-solid fa-rotate-left text-slate-400"></i>
+                                                <span>Reset Default</span>
+                                            </button>
+                                            <button type="button" onclick="app.bimbinganTka.saveCardSetting()" class="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center space-x-2">
+                                                <i class="fa-solid fa-floppy-disk"></i>
+                                                <span>Simpan Pengaturan Kartu</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- PREVIEW KARTU -->
+                                <div>
+                                    <div class="bg-gray-50 rounded-2xl border border-gray-200 p-5">
+                                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center">
+                                            <i class="fa-solid fa-eye mr-2 text-slate-400"></i> Pratinjau Kartu
+                                        </p>
+                                        <div id="btka-card-setting-preview" class="flex justify-center">
+                                            <!-- Preview dirender oleh JS -->
+                                        </div>
+                                        <p class="text-[10px] text-slate-400 text-center mt-3 italic">Pratinjau berubah otomatis saat Anda mengedit pengaturan</p>
+                                    </div>
+
+                                    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                        <p class="text-xs font-bold text-amber-800 flex items-center mb-1.5">
+                                            <i class="fa-solid fa-lightbulb text-amber-500 mr-1.5"></i> Tips Pengaturan Kartu
+                                        </p>
+                                        <ul class="text-[11px] text-amber-700 space-y-1 list-disc list-inside">
+                                            <li>Nama sekolah otomatis diambil dari menu <b>Pengaturan Sistem</b></li>
+                                            <li>Logo sekolah juga diambil dari Pengaturan Sistem</li>
+                                            <li>Pengaturan ini berlaku untuk cetak kartu individu maupun batch</li>
+                                            <li>Klik "Simpan" agar pengaturan tersimpan permanen di perangkat ini</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -3087,7 +3206,7 @@
                                 <td class="px-6 py-4">${s.ortu || s.nama_ortu || '-'}</td>
                                 <td class="px-6 py-4 font-mono text-xs text-slate-600">${s.hp || s.no_hp || '-'}</td>
                                 <td class="px-6 py-4 text-right space-x-1">
-                                    <button onclick="app.bimbinganTka.printSingleCard('')" class="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl" title="Cetak Kartu Barcode Siswa"><i class="fa-solid fa-id-card"></i></button>
+                                    <button onclick="app.bimbinganTka.printSingleCard('${s.id || s.id_siswa}')" class="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl" title="Cetak Kartu Barcode Siswa"><i class="fa-solid fa-id-card"></i></button>
                                     <button onclick="app.siswa.edit('${s.id || s.id_siswa}')" class="p-2 text-slate-500 hover:bg-slate-100 rounded-xl"><i class="fa-solid fa-pen-to-square"></i></button>
                                     <button onclick="app.siswa.delete('${s.id || s.id_siswa}')" class="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"><i class="fa-solid fa-trash"></i></button>
                                 </td>
@@ -3244,7 +3363,7 @@
                 },
 
                 exportCSV: function() {
-                    let csv = 'NIS;Nama Siswa;Gender;Kelas;Nama Wali;Nomor HP Ortu;Status;Alasan\n';
+                    let csv = 'NIS;Nama Siswa;Gender;Kelas;Nama Wali;Nomor HP Ortu;Status;Alasan\\n';
                     const listSiswa = app.state.siswa;
                     
                     listSiswa.forEach(s => {
@@ -3262,6 +3381,44 @@
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
+                },
+
+                syncFromSpreadsheet: function() {
+                    Swal.fire({
+                        title: '<i class="fa-solid fa-arrows-rotate text-green-500 mr-2"></i> Sinkronisasi Data Siswa',
+                        html: `
+                            <div class="text-left text-xs text-slate-700 space-y-3">
+                                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                                    <p class="font-bold text-blue-800 mb-1.5"><i class="fa-solid fa-circle-info mr-1 text-blue-500"></i> Cara Sinkronisasi Data dari Google Spreadsheet</p>
+                                    <p class="text-blue-700">Karena aplikasi berjalan di GitHub Pages (bukan langsung di GAS), sinkronisasi dilakukan melalui Export-Import CSV.</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <p class="font-bold text-slate-800">Langkah-langkah:</p>
+                                    <ol class="list-decimal list-inside space-y-1.5 text-slate-600">
+                                        <li>Buka <b>Google Spreadsheet</b> SISKA Anda</li>
+                                        <li>Pilih sheet tab <b>"Siswa"</b></li>
+                                        <li>Klik menu <b>File → Download → CSV (.csv)</b></li>
+                                        <li>Kembali ke aplikasi ini, klik tombol <b>"Import CSV/Excel"</b></li>
+                                        <li>Pilih file CSV yang baru diunduh</li>
+                                        <li>Data siswa akan otomatis ter-import dan diperbarui</li>
+                                    </ol>
+                                </div>
+                                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                    <p class="font-bold text-amber-700 mb-1"><i class="fa-solid fa-lightbulb text-amber-500 mr-1"></i> Tips:</p>
+                                    <p class="text-amber-600">Jika menggunakan aplikasi SISKA langsung di Google Apps Script (URL GAS), data sudah otomatis realtime dari Spreadsheet tanpa perlu sinkronisasi manual.</p>
+                                </div>
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa-solid fa-file-import mr-1"></i> Buka Import CSV',
+                        cancelButtonText: 'Tutup',
+                        confirmButtonColor: '#10b981',
+                        width: '520px'
+                    }).then((res) => {
+                        if (res.isConfirmed) {
+                            this.showImportModal();
+                        }
+                    });
                 }
             },
 
@@ -4425,7 +4582,8 @@
                     const btnMap = {
                         'tab-btka-scan': 'btn-tab-btka-scan',
                         'tab-btka-monitoring': 'btn-tab-btka-monitoring',
-                        'tab-btka-kartu': 'btn-tab-btka-kartu'
+                        'tab-btka-kartu': 'btn-tab-btka-kartu',
+                        'tab-btka-setting-kartu': 'btn-tab-btka-setting-kartu'
                     };
 
                     Object.keys(btnMap).forEach(t => {
@@ -4447,6 +4605,9 @@
                         this.loadMonitoring();
                     } else if (tabId === 'tab-btka-kartu') {
                         this.renderCardsPreview();
+                    } else if (tabId === 'tab-btka-setting-kartu') {
+                        this.loadCardSetting();
+                        this.previewCardSetting();
                     }
                 },
 
@@ -4881,6 +5042,116 @@
                     let nextIndex = (selectCam.selectedIndex + 1) % selectCam.options.length;
                     selectCam.selectedIndex = nextIndex;
                     this.changeCameraDevice(selectCam.value);
+                },
+
+                // ===== PENGATURAN IDENTITAS KARTU =====
+                getCardSetting: function() {
+                    const defaults = {
+                        judul: 'KARTU PESERTA BIMBINGAN TKA',
+                        tahunAjaran: '2025/2026',
+                        warna: '#0ea5e9',
+                        warnaTeks: '#ffffff',
+                        kepsek: '',
+                        nipKepsek: '',
+                        footer: 'Wajib dibawa setiap mengikuti Bimbingan TKA'
+                    };
+                    try {
+                        const saved = localStorage.getItem('db_btka_card_setting');
+                        return saved ? Object.assign({}, defaults, JSON.parse(saved)) : defaults;
+                    } catch(e) { return defaults; }
+                },
+
+                loadCardSetting: function() {
+                    const s = this.getCardSetting();
+                    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+                    set('kset-judul', s.judul);
+                    set('kset-tahun-ajaran', s.tahunAjaran);
+                    set('kset-warna', s.warna);
+                    set('kset-warna-hex', s.warna);
+                    set('kset-warna-teks', s.warnaTeks);
+                    set('kset-warna-teks-hex', s.warnaTeks);
+                    set('kset-kepsek', s.kepsek);
+                    set('kset-nip-kepsek', s.nipKepsek);
+                    set('kset-footer', s.footer);
+                },
+
+                saveCardSetting: function() {
+                    const get = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+                    const setting = {
+                        judul: get('kset-judul') || 'KARTU PESERTA BIMBINGAN TKA',
+                        tahunAjaran: get('kset-tahun-ajaran'),
+                        warna: get('kset-warna') || '#0ea5e9',
+                        warnaTeks: get('kset-warna-teks') || '#ffffff',
+                        kepsek: get('kset-kepsek'),
+                        nipKepsek: get('kset-nip-kepsek'),
+                        footer: get('kset-footer')
+                    };
+                    localStorage.setItem('db_btka_card_setting', JSON.stringify(setting));
+                    Swal.fire({ icon: 'success', title: 'Tersimpan!', text: 'Pengaturan identitas kartu berhasil disimpan.', timer: 1500, showConfirmButton: false });
+                },
+
+                resetCardSetting: function() {
+                    localStorage.removeItem('db_btka_card_setting');
+                    this.loadCardSetting();
+                    this.previewCardSetting();
+                    Swal.fire({ icon: 'info', title: 'Reset', text: 'Pengaturan kartu dikembalikan ke nilai default.', timer: 1500, showConfirmButton: false });
+                },
+
+                syncColorInput: function(type) {
+                    if (type === 'hex') {
+                        const hexEl = document.getElementById('kset-warna-hex');
+                        const pickerEl = document.getElementById('kset-warna');
+                        if (hexEl && pickerEl && /^#[0-9A-Fa-f]{6}$/.test(hexEl.value)) {
+                            pickerEl.value = hexEl.value;
+                        }
+                    } else {
+                        const hexEl = document.getElementById('kset-warna-teks-hex');
+                        const pickerEl = document.getElementById('kset-warna-teks');
+                        if (hexEl && pickerEl && /^#[0-9A-Fa-f]{6}$/.test(hexEl.value)) {
+                            pickerEl.value = hexEl.value;
+                        }
+                    }
+                    this.previewCardSetting();
+                },
+
+                previewCardSetting: function() {
+                    const previewEl = document.getElementById('btka-card-setting-preview');
+                    if (!previewEl) return;
+
+                    const get = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+                    const judul = get('kset-judul') || 'KARTU PESERTA BIMBINGAN TKA';
+                    const tahunAjaran = get('kset-tahun-ajaran') || '2025/2026';
+                    const warna = get('kset-warna') || '#0ea5e9';
+                    const warnaTeks = get('kset-warna-teks') || '#ffffff';
+                    const kepsek = get('kset-kepsek') || 'Nama Kepala Sekolah, M.Pd.';
+                    const nipKepsek = get('kset-nip-kepsek') || 'NIP. 196XXXXXXXXX';
+                    const footer = get('kset-footer') || 'Wajib dibawa setiap mengikuti Bimbingan TKA';
+                    const schoolName = (app.state.setting && app.state.setting.nama) ? app.state.setting.nama : 'NAMA SEKOLAH';
+                    const logoUrl = (app.state.setting && app.state.setting.logo) ? app.state.setting.logo : '';
+                    const barcodeSvg = this.generateBarcodeSvg('12345', 30);
+
+                    previewEl.innerHTML = `
+                        <div style="border:1.5px dashed #64748b;border-radius:8px;padding:3mm 4mm;width:200px;background:#fff;font-family:Segoe UI,sans-serif;font-size:8pt;">
+                            <div style="display:flex;align-items:center;background:${warna};color:${warnaTeks};border-radius:5px 5px 0 0;padding:2mm 3mm;gap:2mm;margin:-3mm -4mm 2mm -4mm;">
+                                ${logoUrl ? `<img src="${logoUrl}" style="width:9mm;height:9mm;object-fit:contain;border-radius:3px;background:#fff;">` : `<div style="width:9mm;height:9mm;background:rgba(255,255,255,0.3);border-radius:3px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:7pt;">TKA</div>`}
+                                <div>
+                                    <div style="font-size:7.5pt;font-weight:800;text-transform:uppercase;">${schoolName.substring(0, 25)}</div>
+                                    <div style="font-size:6pt;font-weight:700;opacity:0.9;">${judul.substring(0, 30)}</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:2mm;margin:1.5mm 0;">
+                                <div style="width:10mm;height:10mm;border-radius:4px;background:#f1f5f9;border:1px solid #cbd5e1;font-weight:800;font-size:8pt;color:#334155;display:flex;align-items:center;justify-content:center;">AB</div>
+                                <div>
+                                    <div style="font-size:8pt;font-weight:800;color:#0f172a;">Nama Siswa Contoh</div>
+                                    <div style="font-size:6.5pt;color:#475569;">Kelas: 7A &nbsp;|&nbsp; TA: ${tahunAjaran}</div>
+                                    <div style="font-size:6pt;font-family:monospace;color:#64748b;">NIS: 12345</div>
+                                </div>
+                            </div>
+                            <div style="border-top:1px solid #f1f5f9;padding-top:1mm;text-align:center;">${barcodeSvg.replace('width="200"','width="170"')}</div>
+                            ${footer ? `<div style="text-align:center;font-size:5.5pt;color:#94a3b8;margin-top:1mm;font-style:italic;">${footer.substring(0,50)}</div>` : ''}
+                            ${kepsek ? `<div style="text-align:right;font-size:5.5pt;color:#64748b;margin-top:1mm;border-top:1px dotted #e2e8f0;padding-top:1mm;">ttd ${kepsek.substring(0,25)}</div>` : ''}
+                        </div>
+                    `;
                 },
 
                 searchManualStudent: function() {
