@@ -8,10 +8,13 @@
   <link rel="manifest" href="manifest.json">
   
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="#4f46e5">
+  <meta name="apple-mobile-web-app-status-bar-style" content="#0ea5e9">
   <meta name="apple-mobile-web-app-title" content="siskademo">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <meta name="theme-color" content="#4f46e5">
+  <meta name="theme-color" content="#0ea5e9">
+
+  <!-- Permissions Policy: izinkan kamera -->
+  <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*">
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -29,7 +32,7 @@
     }
     .spinner {
       width: 50px; height: 50px;
-      border: 5px solid #e2e8f0; border-top: 5px solid #4f46e5;
+      border: 5px solid #e2e8f0; border-top: 5px solid #0ea5e9;
       border-radius: 50%; animation: spin 1s linear infinite;
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -40,23 +43,35 @@
 
   <div id="splash" class="splash-screen">
     <div class="spinner"></div>
-    <p style="margin-top: 20px; color: #475569; font-weight: 500;">Memuat siskademo</p>
+    <p style="margin-top: 20px; color: #475569; font-weight: 500;">Memuat SISKA...</p>
   </div>
 
   <div class="app-container">
-    <iframe id="appFrame" src="https://script.google.com/a/macros/guru.smp.belajar.id/s/AKfycbwVL-y0vkq0aXluGEVfLXv7YzlgZXhRPmIbG4FQ4u-kjui0B6k92WXxW9B2AJB8SNd2/exec" allow="geolocation; microphone; camera"></iframe>
+    <!-- 
+      Catatan: Iframe ke Google Apps Script TIDAK mendukung kamera.
+      Untuk kamera aktif, buka siska_app.html langsung di browser:
+      https://mas-hudin.github.io/siskademo/siska_app.html
+      
+      Atau deploy siska_app.html sebagai index.html langsung di GitHub Pages.
+    -->
+    <iframe 
+      id="appFrame" 
+      src="siska_app.html" 
+      allow="camera; microphone; geolocation; autoplay"
+      allowfullscreen
+    ></iframe>
   </div>
 
   <script>
     const iframe = document.getElementById('appFrame');
     const splash = document.getElementById('splash');
 
-    // Menghilangkan splash screen setelah iframe selesai memuat sistem cloud
+    // Menghilangkan splash screen setelah iframe selesai memuat
     iframe.onload = function() {
       splash.classList.add('hidden');
     };
 
-    // Registrasi Service Worker untuk standardisasi PWA agar bisa di-install
+    // Registrasi Service Worker untuk PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
