@@ -1404,6 +1404,29 @@
                                         </div>
 
                                         <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">
+                                                Upload Tanda Tangan Kepala Sekolah
+                                                <span class="ml-1 text-[10px] font-normal text-slate-400">(PNG/JPG transparan, maks 500KB)</span>
+                                            </label>
+                                            <div class="flex items-start gap-3">
+                                                <div class="flex-1">
+                                                    <label class="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300 hover:border-cyan-400 rounded-xl px-3 py-3 cursor-pointer transition-colors bg-gray-50 hover:bg-cyan-50" for="kset-ttd-file">
+                                                        <i class="fa-solid fa-cloud-arrow-up text-slate-400 text-sm"></i>
+                                                        <span class="text-xs text-slate-500">Klik untuk pilih gambar TTD</span>
+                                                    </label>
+                                                    <input type="file" id="kset-ttd-file" accept="image/png,image/jpeg,image/jpg,image/gif" class="hidden" onchange="app.bimbinganTka.loadTtdFile(this)">
+                                                    <p class="text-[10px] text-slate-400 mt-1">Gunakan gambar dengan latar belakang transparan (PNG) agar lebih rapi di kartu</p>
+                                                </div>
+                                                <div id="kset-ttd-preview-box" class="hidden w-24 border border-gray-200 rounded-xl p-1.5 bg-white flex-shrink-0">
+                                                    <img id="kset-ttd-preview-img" src="" alt="Preview TTD" class="w-full h-14 object-contain">
+                                                    <button type="button" onclick="app.bimbinganTka.removeTtd()" class="w-full mt-1 text-[10px] text-rose-500 hover:text-rose-700 font-semibold text-center">
+                                                        <i class="fa-solid fa-trash-can mr-0.5"></i> Hapus
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
                                             <label class="block text-xs font-bold text-slate-600 mb-1.5">Catatan Footer Kartu</label>
                                             <input type="text" id="kset-footer" placeholder="Wajib dibawa setiap mengikuti Bimbingan TKA" maxlength="80"
                                                 class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-cyan-500 outline-none" oninput="app.bimbinganTka.previewCardSetting()">
@@ -3283,84 +3306,163 @@
                         return;
                     }
 
+                    // Deteksi separator
                     const firstLine = lines[0];
                     const separator = firstLine.includes(';') ? ';' : ',';
 
+                    // === SMART HEADER MAPPING ===
+                    // Membaca baris pertama sebagai header lalu mapping kolom secara fleksibel
+                    const headers = firstLine.split(separator).map(h => h.trim().replace(/^\"|\"$/g, '').toLowerCase().trim());
+
+                    // Fungsi cari index kolom dari beberapa kemungkinan nama
+                    const findCol = (...candidates) => {
+                        for (const c of candidates) {
+                            const idx = headers.indexOf(c.toLowerCase());
+                            if (idx !== -1) return idx;
+                        }
+                        return -1;
+                    };
+
+                    const iNis      = findCol('nis', 'no_nis', 'nomor_nis');
+                    const iNama     = findCol('nama', 'nama_siswa', 'nama siswa', 'name');
+                    const iJk       = findCol('jk', 'gender', 'jenis_kelamin', 'jenis kelamin', 'l/p');
+                    const iKelas    = findCol('kelas', 'id_kelas', 'kode_kelas', 'nama_kelas', 'kelas/ruang', 'kode kelas');
+                    const iOrtu     = findCol('nama_ortu', 'ortu', 'nama wali', 'nama ortu', 'wali', 'nama_wali');
+                    const iHp       = findCol('no_hp', 'hp', 'nomor hp ortu', 'no hp', 'no. hp', 'telp', 'telepon');
+                    const iStatus   = findCol('status_siswa', 'status', 'status siswa');
+                    const iAlasan   = findCol('alasan_tidak_aktif', 'alasan', 'keterangan');
+                    // Untuk format export Sheets yang pakai id_kelas (bukan nama kelas)
+                    const iIdKelas  = findCol('id_kelas');
+
+                    // Pastikan minimal ada kolom nis dan nama
+                    if (iNis === -1 && iNama === -1) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Format Kolom Tidak Dikenali',
+                            html: `<div class="text-left text-xs text-slate-700 space-y-2">
+                                <p>Header kolom yang ditemukan di file Anda:</p>
+                                <p class="font-mono bg-gray-100 p-2 rounded text-[10px] break-all">${headers.join(' | ')}</p>
+                                <p class="font-bold text-red-700">Kolom <b>NIS</b> dan <b>Nama</b> wajib ada di file CSV.</p>
+                                <p>Gunakan tombol <b>Export Excel (CSV)</b> untuk mendapatkan template format yang benar.</p>
+                            </div>`,
+                            confirmButtonColor: '#0ea5e9'
+                        });
+                        return;
+                    }
+
                     let successCount = 0;
+                    let skipCount = 0;
                     const itemsToSave = [];
                     const listKelas = app.state.kelas;
+                    const existingNis = new Set((app.state.siswa || []).map(s => (s.nis || '').toString().trim()));
 
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim();
                         if (!line) continue;
 
-                        const cols = line.split(separator).map(c => c.trim().replace(/^"|"$/g, ''));
-                        if (cols.length >= 4) {
-                            const [nis, nama, jk, namaKelasInput, ortu, hp, statusInput, alasanInput] = cols;
-                            
-                            let targetKelas = listKelas.find(k => 
-                                (k.nama || k.nama_kelas || '').toLowerCase() === (namaKelasInput || '').toLowerCase() || 
-                                (k.kode || k.kode_kelas || '').toLowerCase() === (namaKelasInput || '').toLowerCase()
-                            );
+                        const cols = line.split(separator).map(c => c.trim().replace(/^\"|\"$/g, ''));
 
-                            let classId = targetKelas ? (targetKelas.id || targetKelas.id_kelas) : null;
-                            if (!classId && namaKelasInput) {
+                        const nis   = iNis   !== -1 ? (cols[iNis]   || '').trim() : '';
+                        const nama  = iNama  !== -1 ? (cols[iNama]  || '').trim() : '';
+                        const jk    = iJk    !== -1 ? (cols[iJk]    || '').trim() : 'L';
+                        const ortu  = iOrtu  !== -1 ? (cols[iOrtu]  || '').trim() : '';
+                        const hp    = iHp    !== -1 ? (cols[iHp]    || '').trim() : '';
+                        const statusInput  = iStatus  !== -1 ? (cols[iStatus]  || '').trim() : 'Aktif';
+                        const alasanInput  = iAlasan  !== -1 ? (cols[iAlasan]  || '').trim() : '';
+
+                        if (!nama) continue; // Skip baris tanpa nama
+
+                        // Resolusi kelas
+                        let classId = null;
+                        const namaKelasInput = iKelas !== -1 ? (cols[iKelas] || '').trim() : '';
+                        const idKelasInput   = iIdKelas !== -1 ? (cols[iIdKelas] || '').trim() : '';
+
+                        if (idKelasInput) {
+                            // Format Sheets: pakai id_kelas langsung
+                            const existK = listKelas.find(k => (k.id === idKelasInput || k.id_kelas === idKelasInput));
+                            classId = existK ? (existK.id || existK.id_kelas) : idKelasInput;
+                        } else if (namaKelasInput) {
+                            // Format SISKA export: pakai nama/kode kelas
+                            let targetKelas = listKelas.find(k =>
+                                (k.nama || k.nama_kelas || '').toLowerCase() === namaKelasInput.toLowerCase() ||
+                                (k.kode || k.kode_kelas || '').toLowerCase() === namaKelasInput.toLowerCase()
+                            );
+                            if (!targetKelas) {
+                                // Buat kelas baru otomatis
                                 classId = DB.generateId();
                                 const newK = { id: classId, id_kelas: classId, kode: namaKelasInput, kode_kelas: namaKelasInput, nama: namaKelasInput, nama_kelas: namaKelasInput, wali: 'Wali Kelas ' + namaKelasInput, status: 'Aktif' };
                                 app.state.kelas.push(newK);
                                 listKelas.push(newK);
                                 await DB.saveRow('kelas', 'id_kelas', newK);
+                            } else {
+                                classId = targetKelas.id || targetKelas.id_kelas;
                             }
-
-                            const cleanNis = parseInt(nis, 10) ? parseInt(nis, 10).toString() : nis;
-                            const studentId = DB.generateId();
-
-                            itemsToSave.push({
-                                id: studentId,
-                                id_siswa: studentId,
-                                nis: cleanNis,
-                                nama: nama,
-                                jk: (jk || '').toUpperCase() === 'P' ? 'P' : 'L',
-                                id_kelas: classId,
-                                ortu: ortu || '',
-                                nama_ortu: ortu || '',
-                                hp: hp || '',
-                                no_hp: hp || '',
-                                status_siswa: statusInput || 'Aktif',
-                                alasan_tidak_aktif: alasanInput || ''
-                            });
-                            successCount++;
                         }
+
+                        const cleanNis = nis ? (parseInt(nis, 10) ? parseInt(nis, 10).toString() : nis) : '';
+
+                        // Skip jika NIS sudah ada (tidak duplikasi)
+                        if (cleanNis && existingNis.has(cleanNis)) {
+                            skipCount++;
+                            continue;
+                        }
+                        if (cleanNis) existingNis.add(cleanNis);
+
+                        const studentId = DB.generateId();
+                        itemsToSave.push({
+                            id: studentId,
+                            id_siswa: studentId,
+                            nis: cleanNis,
+                            nama: nama,
+                            jk: (jk || '').toUpperCase() === 'P' ? 'P' : 'L',
+                            id_kelas: classId,
+                            ortu: ortu,
+                            nama_ortu: ortu,
+                            hp: hp,
+                            no_hp: hp,
+                            status_siswa: statusInput || 'Aktif',
+                            alasan_tidak_aktif: alasanInput || ''
+                        });
+                        successCount++;
                     }
 
-                    if (itemsToSave.length > 0) {
-                        app.state.siswa = app.state.siswa.concat(itemsToSave);
-                        this.renderTable();
-                        app.propagateUIComponents();
-                        app.dashboard.load();
-                        this.hideImportModal();
-
-                        Swal.fire({ title: 'Memproses...', text: 'Mengunggah data siswa...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-                        
-                        if (DB.isGAS) {
-                            const schemaArray = itemsToSave.map(s => {
-                                return { id_siswa: s.id, nis: s.nis, nama: s.nama, jk: s.jk, id_kelas: s.id_kelas, nama_ortu: s.ortu, no_hp: s.hp, status_siswa: s.status_siswa, alasan_tidak_aktif: s.alasan_tidak_aktif };
-                            });
-                            await new Promise((resolve, reject) => {
-                                google.script.run
-                                    .withSuccessHandler(res => resolve(res))
-                                    .withFailureHandler(err => reject(err))
-                                    .importSiswaBatch(schemaArray);
-                            });
-                        } else {
-                            let currentLocal = JSON.parse(localStorage.getItem('db_siswa') || '[]');
-                            localStorage.setItem('db_siswa', JSON.stringify(currentLocal.concat(itemsToSave)));
-                        }
-                        Swal.close();
+                    if (itemsToSave.length === 0) {
+                        Swal.fire('Tidak Ada Data Baru', `Semua data di file sudah ada di aplikasi atau tidak valid. (${skipCount} baris dilewati karena NIS duplikat)`, 'info');
+                        return;
                     }
 
-                    Swal.fire('Import Berhasil', `Berhasil mengimport ${successCount} siswa dari file CSV!`, 'success');
+                    app.state.siswa = app.state.siswa.concat(itemsToSave);
+                    this.renderTable();
+                    app.propagateUIComponents();
+                    app.dashboard.load();
+                    this.hideImportModal();
+
+                    Swal.fire({ title: 'Memproses...', text: 'Menyimpan data siswa...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                    
+                    if (DB.isGAS) {
+                        const schemaArray = itemsToSave.map(s => {
+                            return { id_siswa: s.id, nis: s.nis, nama: s.nama, jk: s.jk, id_kelas: s.id_kelas, nama_ortu: s.ortu, no_hp: s.hp, status_siswa: s.status_siswa, alasan_tidak_aktif: s.alasan_tidak_aktif };
+                        });
+                        await new Promise((resolve, reject) => {
+                            google.script.run
+                                .withSuccessHandler(res => resolve(res))
+                                .withFailureHandler(err => reject(err))
+                                .importSiswaBatch(schemaArray);
+                        });
+                    } else {
+                        let currentLocal = JSON.parse(localStorage.getItem('db_siswa') || '[]');
+                        localStorage.setItem('db_siswa', JSON.stringify(currentLocal.concat(itemsToSave)));
+                    }
+                    Swal.close();
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Import Berhasil!',
+                        html: `<p>Berhasil mengimport <b>${successCount}</b> siswa baru.</p>${skipCount > 0 ? `<p class="text-xs text-slate-500 mt-1">${skipCount} baris dilewati (NIS sudah ada / data kosong).</p>` : ''}`,
+                        confirmButtonColor: '#0ea5e9'
+                    });
                 },
+
 
                 exportCSV: function() {
                     let csv = 'NIS;Nama Siswa;Gender;Kelas;Nama Wali;Nomor HP Ortu;Status;Alasan\\n';
@@ -5045,6 +5147,8 @@
                 },
 
                 // ===== PENGATURAN IDENTITAS KARTU =====
+                _ttdUrlTemp: '', // Penyimpanan sementara base64 ttd sebelum disimpan
+
                 getCardSetting: function() {
                     const defaults = {
                         judul: 'KARTU PESERTA BIMBINGAN TKA',
@@ -5053,7 +5157,8 @@
                         warnaTeks: '#ffffff',
                         kepsek: '',
                         nipKepsek: '',
-                        footer: 'Wajib dibawa setiap mengikuti Bimbingan TKA'
+                        footer: 'Wajib dibawa setiap mengikuti Bimbingan TKA',
+                        ttdUrl: ''
                     };
                     try {
                         const saved = localStorage.getItem('db_btka_card_setting');
@@ -5073,6 +5178,9 @@
                     set('kset-kepsek', s.kepsek);
                     set('kset-nip-kepsek', s.nipKepsek);
                     set('kset-footer', s.footer);
+                    // Tampilkan preview TTD jika ada
+                    this._ttdUrlTemp = s.ttdUrl || '';
+                    this._showTtdPreview(s.ttdUrl);
                 },
 
                 saveCardSetting: function() {
@@ -5084,17 +5192,64 @@
                         warnaTeks: get('kset-warna-teks') || '#ffffff',
                         kepsek: get('kset-kepsek'),
                         nipKepsek: get('kset-nip-kepsek'),
-                        footer: get('kset-footer')
+                        footer: get('kset-footer'),
+                        ttdUrl: this._ttdUrlTemp || ''
                     };
-                    localStorage.setItem('db_btka_card_setting', JSON.stringify(setting));
-                    Swal.fire({ icon: 'success', title: 'Tersimpan!', text: 'Pengaturan identitas kartu berhasil disimpan.', timer: 1500, showConfirmButton: false });
+                    try {
+                        localStorage.setItem('db_btka_card_setting', JSON.stringify(setting));
+                        Swal.fire({ icon: 'success', title: 'Tersimpan!', text: 'Pengaturan identitas kartu berhasil disimpan.', timer: 1500, showConfirmButton: false });
+                    } catch(e) {
+                        // localStorage mungkin penuh karena base64 TTD terlalu besar
+                        const settingNoTtd = Object.assign({}, setting, { ttdUrl: '' });
+                        localStorage.setItem('db_btka_card_setting', JSON.stringify(settingNoTtd));
+                        Swal.fire({ icon: 'warning', title: 'Disimpan Tanpa TTD', html: 'Pengaturan tersimpan, namun gambar TTD tidak dapat disimpan (ukuran terlalu besar untuk penyimpanan lokal).<br><small>Gunakan gambar TTD yang lebih kecil atau dikompresi.</small>' });
+                    }
                 },
 
                 resetCardSetting: function() {
                     localStorage.removeItem('db_btka_card_setting');
+                    this._ttdUrlTemp = '';
                     this.loadCardSetting();
                     this.previewCardSetting();
                     Swal.fire({ icon: 'info', title: 'Reset', text: 'Pengaturan kartu dikembalikan ke nilai default.', timer: 1500, showConfirmButton: false });
+                },
+
+                _showTtdPreview: function(dataUrl) {
+                    const box = document.getElementById('kset-ttd-preview-box');
+                    const img = document.getElementById('kset-ttd-preview-img');
+                    if (!box || !img) return;
+                    if (dataUrl) {
+                        img.src = dataUrl;
+                        box.classList.remove('hidden');
+                    } else {
+                        img.src = '';
+                        box.classList.add('hidden');
+                    }
+                },
+
+                loadTtdFile: function(inputEl) {
+                    const file = inputEl.files && inputEl.files[0];
+                    if (!file) return;
+                    if (file.size > 600 * 1024) {
+                        Swal.fire({ icon: 'warning', title: 'File Terlalu Besar', text: 'Ukuran gambar TTD maksimal 500KB. Kompres gambar terlebih dahulu.', confirmButtonColor: '#0ea5e9' });
+                        inputEl.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this._ttdUrlTemp = e.target.result;
+                        this._showTtdPreview(e.target.result);
+                        this.previewCardSetting();
+                    };
+                    reader.readAsDataURL(file);
+                },
+
+                removeTtd: function() {
+                    this._ttdUrlTemp = '';
+                    this._showTtdPreview('');
+                    const fileEl = document.getElementById('kset-ttd-file');
+                    if (fileEl) fileEl.value = '';
+                    this.previewCardSetting();
                 },
 
                 syncColorInput: function(type) {
@@ -5123,33 +5278,51 @@
                     const tahunAjaran = get('kset-tahun-ajaran') || '2025/2026';
                     const warna = get('kset-warna') || '#0ea5e9';
                     const warnaTeks = get('kset-warna-teks') || '#ffffff';
-                    const kepsek = get('kset-kepsek') || 'Nama Kepala Sekolah, M.Pd.';
-                    const nipKepsek = get('kset-nip-kepsek') || 'NIP. 196XXXXXXXXX';
-                    const footer = get('kset-footer') || 'Wajib dibawa setiap mengikuti Bimbingan TKA';
+                    const kepsek = get('kset-kepsek') || '';
+                    const nipKepsek = get('kset-nip-kepsek') || '';
+                    const footer = get('kset-footer') || '';
                     const schoolName = (app.state.setting && app.state.setting.nama) ? app.state.setting.nama : 'NAMA SEKOLAH';
                     const logoUrl = (app.state.setting && app.state.setting.logo) ? app.state.setting.logo : '';
-                    const barcodeSvg = this.generateBarcodeSvg('12345', 30);
+                    const ttdUrl = this._ttdUrlTemp || '';
+                    const barcodeSvg = this.generateBarcodeSvg('12345', 28);
+                    const hasSign = kepsek || ttdUrl;
 
                     previewEl.innerHTML = `
-                        <div style="border:1.5px dashed #64748b;border-radius:8px;padding:3mm 4mm;width:200px;background:#fff;font-family:Segoe UI,sans-serif;font-size:8pt;">
-                            <div style="display:flex;align-items:center;background:${warna};color:${warnaTeks};border-radius:5px 5px 0 0;padding:2mm 3mm;gap:2mm;margin:-3mm -4mm 2mm -4mm;">
-                                ${logoUrl ? `<img src="${logoUrl}" style="width:9mm;height:9mm;object-fit:contain;border-radius:3px;background:#fff;">` : `<div style="width:9mm;height:9mm;background:rgba(255,255,255,0.3);border-radius:3px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:7pt;">TKA</div>`}
-                                <div>
-                                    <div style="font-size:7.5pt;font-weight:800;text-transform:uppercase;">${schoolName.substring(0, 25)}</div>
-                                    <div style="font-size:6pt;font-weight:700;opacity:0.9;">${judul.substring(0, 30)}</div>
+                        <div style="border:1.5px dashed #94a3b8;border-radius:4px;width:243px;height:153px;background:#fff;font-family:Segoe UI,sans-serif;display:flex;flex-direction:column;overflow:hidden;">
+                            <!-- Header berwarna -->
+                            <div style="background:${warna};color:${warnaTeks};display:flex;align-items:center;padding:2mm 2.5mm;gap:2mm;flex-shrink:0;">
+                                ${logoUrl ? `<img src="${logoUrl}" style="width:7mm;height:7mm;object-fit:contain;border-radius:2px;">` : `<div style="width:7mm;height:7mm;background:rgba(255,255,255,0.25);border-radius:2px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:5.5pt;">TKA</div>`}
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:6pt;font-weight:800;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName.substring(0,30)}</div>
+                                    <div style="font-size:5pt;font-weight:700;opacity:0.9;">${judul.substring(0,35)}</div>
                                 </div>
                             </div>
-                            <div style="display:flex;align-items:center;gap:2mm;margin:1.5mm 0;">
-                                <div style="width:10mm;height:10mm;border-radius:4px;background:#f1f5f9;border:1px solid #cbd5e1;font-weight:800;font-size:8pt;color:#334155;display:flex;align-items:center;justify-content:center;">AB</div>
-                                <div>
-                                    <div style="font-size:8pt;font-weight:800;color:#0f172a;">Nama Siswa Contoh</div>
-                                    <div style="font-size:6.5pt;color:#475569;">Kelas: 7A &nbsp;|&nbsp; TA: ${tahunAjaran}</div>
-                                    <div style="font-size:6pt;font-family:monospace;color:#64748b;">NIS: 12345</div>
+                            <!-- Body -->
+                            <div style="display:flex;flex:1;padding:1.5mm 2mm;gap:1.5mm;min-height:0;">
+                                <!-- Kiri -->
+                                <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;min-width:0;">
+                                    <div style="display:flex;align-items:flex-start;gap:1.5mm;">
+                                        <div style="width:8mm;height:8mm;border-radius:2px;background:#f1f5f9;border:1px solid #cbd5e1;font-weight:800;font-size:6pt;color:#334155;display:flex;align-items:center;justify-content:center;flex-shrink:0;">AB</div>
+                                        <div>
+                                            <div style="font-size:6.5pt;font-weight:800;color:#0f172a;line-height:1.1;">Nama Siswa Contoh</div>
+                                            <div style="font-size:5.5pt;color:#475569;">Kelas: 7A &nbsp;|&nbsp; TA: ${tahunAjaran}</div>
+                                            <div style="font-size:5pt;font-family:monospace;color:#64748b;">NIS: 12345</div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center;">${barcodeSvg.replace('width="200"', 'width="130"')}</div>
+                                    ${footer ? `<div style="font-size:4.5pt;color:#94a3b8;text-align:center;font-style:italic;">${footer.substring(0,45)}</div>` : ''}
                                 </div>
+                                ${hasSign ? `
+                                <!-- Kanan: TTD -->
+                                <div style="width:20mm;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;border-left:1px dashed #e2e8f0;padding-left:1.5mm;flex-shrink:0;">
+                                    <div style="font-size:4.5pt;color:#64748b;text-align:center;margin-bottom:0.3mm;">Mengetahui,</div>
+                                    ${ttdUrl ? `<img src="${ttdUrl}" style="width:17mm;height:9mm;object-fit:contain;">` : `<div style="width:17mm;height:9mm;"></div>`}
+                                    <div style="border-top:1px solid #334155;width:17mm;margin-bottom:0.3mm;"></div>
+                                    <div style="font-size:4.5pt;font-weight:800;color:#0f172a;text-align:center;line-height:1.1;">${kepsek.substring(0,20)}</div>
+                                    ${nipKepsek ? `<div style="font-size:4pt;color:#64748b;text-align:center;">${nipKepsek.substring(0,20)}</div>` : ''}
+                                </div>
+                                ` : ''}
                             </div>
-                            <div style="border-top:1px solid #f1f5f9;padding-top:1mm;text-align:center;">${barcodeSvg.replace('width="200"','width="170"')}</div>
-                            ${footer ? `<div style="text-align:center;font-size:5.5pt;color:#94a3b8;margin-top:1mm;font-style:italic;">${footer.substring(0,50)}</div>` : ''}
-                            ${kepsek ? `<div style="text-align:right;font-size:5.5pt;color:#64748b;margin-top:1mm;border-top:1px dotted #e2e8f0;padding-top:1mm;">ttd ${kepsek.substring(0,25)}</div>` : ''}
                         </div>
                     `;
                 },
@@ -5545,35 +5718,56 @@
                 },
 
                 generateCardHtml: function(siswa) {
+                    const cs = this.getCardSetting();
                     const schoolName = (app.state.setting && app.state.setting.nama) ? app.state.setting.nama : 'SMP NEGERI INDONESIA';
                     const logoUrl = (app.state.setting && app.state.setting.logo) ? app.state.setting.logo : '';
                     const className = app.helper.getKelasName(siswa.id_kelas || siswa.class_id);
-                    const barcodeSvg = this.generateBarcodeSvg(siswa.nis || siswa.id || siswa.id_siswa, 38);
+                    const barcodeSvg = this.generateBarcodeSvg(siswa.nis || siswa.id || siswa.id_siswa, 32);
                     const initial = (siswa.nama || 'S').substring(0, 2).toUpperCase();
+                    const warna = cs.warna || '#0ea5e9';
+                    const warnaTeks = cs.warnaTeks || '#ffffff';
+                    const judul = cs.judul || 'KARTU PESERTA BIMBINGAN TKA';
+                    const tahunAjaran = cs.tahunAjaran ? `TA: ${cs.tahunAjaran}` : '';
+                    const footer = cs.footer || '';
+                    const kepsek = cs.kepsek || '';
+                    const nipKepsek = cs.nipKepsek || '';
+                    const ttdUrl = cs.ttdUrl || '';
 
                     return `
-                        <div class="bg-white rounded-xl p-3.5 border-2 border-dashed border-slate-300 shadow-sm relative flex flex-col justify-between" style="min-height: 230px;">
-                            <div>
-                                <div class="flex items-center space-x-2 border-b border-slate-200 pb-2 mb-2">
-                                    ${logoUrl ? `<img src="${logoUrl}" class="w-8 h-8 object-contain rounded">` : `<div class="w-8 h-8 rounded bg-cyan-600 text-white flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-graduation-cap"></i></div>`}
-                                    <div class="flex-1 min-w-0">
-                                        <h6 class="text-[10px] font-bold text-slate-800 truncate uppercase leading-tight">${schoolName}</h6>
-                                        <p class="text-[9px] font-extrabold text-cyan-600 tracking-wider">KARTU BIMBINGAN TKA</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-start space-x-2.5 my-2">
-                                    <div class="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
-                                        ${initial}
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <h5 class="text-xs font-bold text-slate-900 leading-snug line-clamp-2">${siswa.nama || '-'}</h5>
-                                        <p class="text-[11px] text-slate-500 font-semibold mt-0.5">Kelas: <span class="text-slate-800 font-bold">${className}</span></p>
-                                        <p class="text-[10px] text-slate-400 font-mono">NIS: ${siswa.nis || '-'}</p>
-                                    </div>
+                        <div class="bg-white rounded-lg border-2 border-dashed border-slate-300 shadow-sm overflow-hidden" style="width:243px;height:153px;font-family:Segoe UI,sans-serif;font-size:8pt;display:flex;flex-direction:column;">
+                            <!-- Header berwarna -->
+                            <div style="background:${warna};color:${warnaTeks};display:flex;align-items:center;padding:2.5mm 3mm;gap:2mm;flex-shrink:0;">
+                                ${logoUrl ? `<img src="${logoUrl}" style="width:8mm;height:8mm;object-fit:contain;border-radius:2px;background:rgba(255,255,255,0.2);">` : `<div style="width:8mm;height:8mm;background:rgba(255,255,255,0.25);border-radius:3px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:6pt;">TKA</div>`}
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:6.5pt;font-weight:800;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName}</div>
+                                    <div style="font-size:5.5pt;font-weight:700;opacity:0.9;letter-spacing:0.3px;">${judul}</div>
                                 </div>
                             </div>
-                            <div class="pt-2 border-t border-slate-100 text-center">
-                                ${barcodeSvg}
+                            <!-- Body -->
+                            <div style="display:flex;flex:1;padding:2mm 3mm;gap:2mm;min-height:0;">
+                                <!-- Kiri: Info siswa + barcode -->
+                                <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;min-width:0;">
+                                    <div style="display:flex;align-items:center;gap:1.5mm;">
+                                        <div style="width:9mm;height:9mm;border-radius:3px;background:#f1f5f9;border:1px solid #cbd5e1;font-weight:800;font-size:7pt;color:#334155;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initial}</div>
+                                        <div style="min-width:0;">
+                                            <div style="font-size:7pt;font-weight:800;color:#0f172a;line-height:1.1;overflow:hidden;max-height:16pt;">${siswa.nama || '-'}</div>
+                                            <div style="font-size:6pt;color:#475569;">Kelas: <b>${className}</b>${tahunAjaran ? ` &nbsp;|&nbsp; ${tahunAjaran}` : ''}</div>
+                                            <div style="font-size:5.5pt;font-family:monospace;color:#64748b;">NIS: ${siswa.nis || '-'}</div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center;">${barcodeSvg.replace('width="200"', 'width="140"')}</div>
+                                    ${footer ? `<div style="font-size:5pt;color:#94a3b8;text-align:center;font-style:italic;margin-top:0.5mm;">${footer}</div>` : ''}
+                                </div>
+                                ${(kepsek || ttdUrl) ? `
+                                <!-- Kanan: TTD KS -->
+                                <div style="width:22mm;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;border-left:1px dashed #e2e8f0;padding-left:2mm;flex-shrink:0;">
+                                    <div style="font-size:5pt;color:#64748b;text-align:center;margin-bottom:0.5mm;">Mengetahui,</div>
+                                    ${ttdUrl ? `<img src="${ttdUrl}" style="width:18mm;height:10mm;object-fit:contain;">` : `<div style="width:18mm;height:10mm;"></div>`}
+                                    <div style="border-top:1px solid #334155;width:18mm;margin-bottom:0.5mm;"></div>
+                                    <div style="font-size:5pt;font-weight:800;color:#0f172a;text-align:center;line-height:1.1;">${kepsek}</div>
+                                    ${nipKepsek ? `<div style="font-size:4.5pt;color:#64748b;text-align:center;">${nipKepsek}</div>` : ''}
+                                </div>
+                                ` : ''}
                             </div>
                         </div>
                     `;
@@ -5582,6 +5776,7 @@
                 printCards: function() {
                     const selKelas = document.getElementById('btka-kartu-kelas') ? document.getElementById('btka-kartu-kelas').value : '';
                     const kertas = document.getElementById('btka-kartu-kertas') ? document.getElementById('btka-kartu-kertas').value : 'A4';
+                    const cs = this.getCardSetting();
                     
                     let students = (app.state.siswa || []).filter(s => (s.status_siswa || 'Aktif') === 'Aktif');
                     if (selKelas) {
@@ -5595,33 +5790,57 @@
 
                     const schoolName = (app.state.setting && app.state.setting.nama) ? app.state.setting.nama : 'SMP NEGERI INDONESIA';
                     const logoUrl = (app.state.setting && app.state.setting.logo) ? app.state.setting.logo : '';
+                    const warna = cs.warna || '#0ea5e9';
+                    const warnaTeks = cs.warnaTeks || '#ffffff';
+                    const judul = cs.judul || 'KARTU PESERTA BIMBINGAN TKA';
+                    const tahunAjaran = cs.tahunAjaran || '';
+                    const kepsek = cs.kepsek || '';
+                    const nipKepsek = cs.nipKepsek || '';
+                    const footer = cs.footer || '';
+                    const ttdUrl = cs.ttdUrl || '';
                     const pageSize = (kertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
 
                     let cardsHtml = '';
                     students.forEach((s) => {
                         const className = app.helper.getKelasName(s.id_kelas || s.class_id);
-                        const barcodeSvg = this.generateBarcodeSvg(s.nis || s.id || s.id_siswa, 36);
+                        const barcodeSvg = this.generateBarcodeSvg(s.nis || s.id || s.id_siswa, 34);
                         const initial = (s.nama || 'S').substring(0, 2).toUpperCase();
 
                         cardsHtml += `
                             <div class="card-item">
-                                <div class="card-header">
-                                    ${logoUrl ? `<img src="${logoUrl}" class="card-logo">` : `<div class="card-logo-placeholder">TKA</div>`}
+                                <!-- Header -->
+                                <div class="card-header" style="background:${warna};color:${warnaTeks};">
+                                    ${logoUrl ? `<img src="${logoUrl}" class="card-logo">` : `<div class="card-logo-ph">TKA</div>`}
                                     <div class="card-header-text">
                                         <div class="card-school">${schoolName}</div>
-                                        <div class="card-title">KARTU PESERTA BIMBINGAN TKA</div>
+                                        <div class="card-title">${judul}</div>
                                     </div>
                                 </div>
+                                <!-- Body -->
                                 <div class="card-body">
-                                    <div class="card-avatar">${initial}</div>
-                                    <div class="card-info">
-                                        <div class="card-name">${s.nama}</div>
-                                        <div class="card-meta">Kelas: <b>${className}</b></div>
-                                        <div class="card-meta">NIS: <b>${s.nis || '-'}</b></div>
+                                    <!-- Kiri -->
+                                    <div class="card-left">
+                                        <div class="card-info-row">
+                                            <div class="card-avatar">${initial}</div>
+                                            <div class="card-info">
+                                                <div class="card-name">${s.nama}</div>
+                                                <div class="card-meta">Kelas: <b>${className}</b>${tahunAjaran ? ` &nbsp;|&nbsp; TA: ${tahunAjaran}` : ''}</div>
+                                                <div class="card-nis">NIS: ${s.nis || '-'}</div>
+                                            </div>
+                                        </div>
+                                        <div class="card-barcode">${barcodeSvg}</div>
+                                        ${footer ? `<div class="card-footer">${footer}</div>` : ''}
                                     </div>
-                                </div>
-                                <div class="card-barcode">
-                                    ${barcodeSvg}
+                                    ${(kepsek || ttdUrl) ? `
+                                    <!-- Kanan: TTD -->
+                                    <div class="card-ttd">
+                                        <div class="ttd-label">Mengetahui,</div>
+                                        ${ttdUrl ? `<img src="${ttdUrl}" class="ttd-img">` : `<div class="ttd-space"></div>`}
+                                        <div class="ttd-line"></div>
+                                        <div class="ttd-name">${kepsek}</div>
+                                        ${nipKepsek ? `<div class="ttd-nip">${nipKepsek}</div>` : ''}
+                                    </div>
+                                    ` : ''}
                                 </div>
                             </div>
                         `;
@@ -5636,63 +5855,57 @@
                             <style>
                                 @page {
                                     size: ${pageSize};
-                                    margin: 8mm 8mm 8mm 8mm;
+                                    margin: 8mm;
                                 }
-                                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-                                body { background: #fff; color: #0f172a; padding: 0; }
+                                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+                                body { background: #fff; color: #0f172a; }
                                 .grid-container {
                                     display: grid;
-                                    grid-template-columns: repeat(2, 1fr);
-                                    gap: 6mm;
-                                    page-break-inside: auto;
+                                    grid-template-columns: repeat(2, 85.6mm);
+                                    gap: 5mm;
+                                    justify-content: center;
                                 }
                                 .card-item {
-                                    border: 1.5px dashed #64748b;
-                                    border-radius: 8px;
-                                    padding: 3mm 4mm;
-                                    height: 58mm;
+                                    width: 85.6mm;
+                                    height: 54mm;
+                                    border: 1.5px dashed #94a3b8;
+                                    border-radius: 4px;
+                                    overflow: hidden;
                                     display: flex;
                                     flex-direction: column;
-                                    justify-content: space-between;
                                     page-break-inside: avoid;
                                     background: #fff;
                                 }
                                 .card-header {
                                     display: flex;
                                     align-items: center;
-                                    border-bottom: 1px solid #cbd5e1;
-                                    padding-bottom: 2mm;
-                                    gap: 3mm;
+                                    padding: 2mm 2.5mm;
+                                    gap: 2mm;
+                                    flex-shrink: 0;
                                 }
-                                .card-logo { width: 9mm; height: 9mm; object-fit: contain; }
-                                .card-logo-placeholder { width: 9mm; height: 9mm; background: #0ea5e9; color: #fff; font-weight: bold; font-size: 8pt; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+                                .card-logo { width: 8mm; height: 8mm; object-fit: contain; }
+                                .card-logo-ph { width: 8mm; height: 8mm; background: rgba(255,255,255,0.25); color: inherit; font-weight: 800; font-size: 6pt; display: flex; align-items: center; justify-content: center; border-radius: 3px; }
                                 .card-header-text { flex: 1; min-width: 0; }
-                                .card-school { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                                .card-title { font-size: 6.5pt; font-weight: 800; color: #0ea5e9; letter-spacing: 0.5px; }
-                                .card-body {
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 3mm;
-                                    margin: 1.5mm 0;
-                                }
-                                .card-avatar {
-                                    width: 10mm;
-                                    height: 10mm;
-                                    border-radius: 6px;
-                                    background: #f1f5f9;
-                                    border: 1px solid #cbd5e1;
-                                    font-weight: 800;
-                                    font-size: 8.5pt;
-                                    color: #334155;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                }
-                                .card-info { flex: 1; min-width: 0; }
-                                .card-name { font-size: 8.5pt; font-weight: 800; color: #0f172a; line-height: 1.1; max-height: 18pt; overflow: hidden; }
-                                .card-meta { font-size: 7pt; color: #475569; margin-top: 0.5mm; }
-                                .card-barcode { text-align: center; border-top: 1px solid #f1f5f9; padding-top: 1mm; }
-                                .card-barcode svg { width: 100%; max-width: 50mm; height: auto; }
+                                .card-school { font-size: 7pt; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                                .card-title { font-size: 5.5pt; font-weight: 700; opacity: 0.9; letter-spacing: 0.3px; }
+                                .card-body { display: flex; flex: 1; padding: 2mm 2.5mm; gap: 2mm; }
+                                .card-left { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+                                .card-info-row { display: flex; align-items: flex-start; gap: 1.5mm; }
+                                .card-avatar { width: 10mm; height: 10mm; border-radius: 3px; background: #f1f5f9; border: 1px solid #cbd5e1; font-weight: 800; font-size: 8pt; color: #334155; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                                .card-info { min-width: 0; flex: 1; }
+                                .card-name { font-size: 8pt; font-weight: 800; color: #0f172a; line-height: 1.1; overflow: hidden; max-height: 20pt; }
+                                .card-meta { font-size: 6pt; color: #475569; margin-top: 0.3mm; }
+                                .card-nis { font-size: 5.5pt; font-family: monospace; color: #64748b; }
+                                .card-barcode { text-align: center; }
+                                .card-barcode svg { width: 100%; max-width: 55mm; height: auto; }
+                                .card-footer { font-size: 5pt; color: #94a3b8; text-align: center; font-style: italic; }
+                                .card-ttd { width: 24mm; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; border-left: 1px dashed #e2e8f0; padding-left: 2mm; flex-shrink: 0; }
+                                .ttd-label { font-size: 5pt; color: #64748b; text-align: center; margin-bottom: 0.5mm; }
+                                .ttd-img { width: 20mm; height: 11mm; object-fit: contain; }
+                                .ttd-space { width: 20mm; height: 11mm; }
+                                .ttd-line { border-top: 1px solid #334155; width: 20mm; margin-bottom: 0.5mm; }
+                                .ttd-name { font-size: 5pt; font-weight: 800; color: #0f172a; text-align: center; line-height: 1.1; }
+                                .ttd-nip { font-size: 4.5pt; color: #64748b; text-align: center; }
                             </style>
                         </head>
                         <body>
@@ -5712,69 +5925,106 @@
 
                 printSingleCard: function(studentId) {
                     const s = (app.state.siswa || []).find(x => (x.id === studentId || x.id_siswa === studentId));
-                    if (!s) return;
+                    if (!s) { Swal.fire('Data Tidak Ditemukan', 'Siswa tidak ditemukan di data aplikasi.', 'warning'); return; }
 
+                    const cs = this.getCardSetting();
                     const schoolName = (app.state.setting && app.state.setting.nama) ? app.state.setting.nama : 'SMP NEGERI INDONESIA';
                     const logoUrl = (app.state.setting && app.state.setting.logo) ? app.state.setting.logo : '';
                     const className = app.helper.getKelasName(s.id_kelas || s.class_id);
-                    const barcodeSvg = this.generateBarcodeSvg(s.nis || s.id || s.id_siswa, 38);
+                    const barcodeSvg = this.generateBarcodeSvg(s.nis || s.id || s.id_siswa, 36);
                     const initial = (s.nama || 'S').substring(0, 2).toUpperCase();
+                    const warna = cs.warna || '#0ea5e9';
+                    const warnaTeks = cs.warnaTeks || '#ffffff';
+                    const judul = cs.judul || 'KARTU PESERTA BIMBINGAN TKA';
+                    const tahunAjaran = cs.tahunAjaran || '';
+                    const kepsek = cs.kepsek || '';
+                    const nipKepsek = cs.nipKepsek || '';
+                    const footer = cs.footer || '';
+                    const ttdUrl = cs.ttdUrl || '';
 
                     const printWin = window.open('', '_blank');
                     printWin.document.write(`
                         <!DOCTYPE html>
                         <html>
                         <head>
-                            <title>Cetak Kartu Siswa - ${s.nama}</title>
+                            <title>Kartu Peserta - ${s.nama}</title>
                             <style>
-                                @page { size: A4; margin: 15mm; }
-                                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-                                body { display: flex; justify-content: center; padding: 20mm; background: #fff; }
+                                @page { size: A4 portrait; margin: 15mm; }
+                                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+                                body { display: flex; justify-content: center; align-items: flex-start; padding: 10mm; background: #fff; }
                                 .card-item {
-                                    border: 1.5px dashed #64748b;
-                                    border-radius: 8px;
-                                    padding: 4mm 5mm;
-                                    width: 85mm;
-                                    height: 55mm;
+                                    width: 85.6mm;
+                                    height: 54mm;
+                                    border: 1.5px dashed #94a3b8;
+                                    border-radius: 4px;
+                                    overflow: hidden;
                                     display: flex;
                                     flex-direction: column;
-                                    justify-content: space-between;
                                     background: #fff;
                                 }
-                                .card-header { display: flex; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 2mm; gap: 3mm; }
-                                .card-logo { width: 10mm; height: 10mm; object-fit: contain; }
-                                .card-logo-placeholder { width: 10mm; height: 10mm; background: #0ea5e9; color: #fff; font-weight: bold; font-size: 8pt; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
-                                .card-header-text { flex: 1; min-width: 0; }
-                                .card-school { font-size: 8pt; font-weight: 800; text-transform: uppercase; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                                .card-title { font-size: 7pt; font-weight: 800; color: #0ea5e9; letter-spacing: 0.5px; }
-                                .card-body { display: flex; align-items: center; gap: 3mm; margin: 2mm 0; }
-                                .card-avatar { width: 11mm; height: 11mm; border-radius: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; font-weight: 800; font-size: 9pt; color: #334155; display: flex; align-items: center; justify-content: center; }
-                                .card-info { flex: 1; min-width: 0; }
-                                .card-name { font-size: 9pt; font-weight: 800; color: #0f172a; line-height: 1.1; max-height: 20pt; overflow: hidden; }
-                                .card-meta { font-size: 7.5pt; color: #475569; margin-top: 0.5mm; }
-                                .card-barcode { text-align: center; border-top: 1px solid #f1f5f9; padding-top: 1mm; }
-                                .card-barcode svg { width: 100%; max-width: 55mm; height: auto; }
+                                .card-header {
+                                    background: ${warna};
+                                    color: ${warnaTeks};
+                                    display: flex;
+                                    align-items: center;
+                                    padding: 2mm 2.5mm;
+                                    gap: 2mm;
+                                    flex-shrink: 0;
+                                }
+                                .card-logo { width: 8mm; height: 8mm; object-fit: contain; }
+                                .card-logo-ph { width: 8mm; height: 8mm; background: rgba(255,255,255,0.25); font-weight: 800; font-size: 6pt; display: flex; align-items: center; justify-content: center; border-radius: 3px; }
+                                .card-school { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                                .card-title { font-size: 6pt; font-weight: 700; opacity: 0.9; }
+                                .card-body { display: flex; flex: 1; padding: 2mm 2.5mm; gap: 2mm; }
+                                .card-left { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+                                .card-info-row { display: flex; align-items: flex-start; gap: 2mm; }
+                                .card-avatar { width: 11mm; height: 11mm; border-radius: 4px; background: #f1f5f9; border: 1px solid #cbd5e1; font-weight: 800; font-size: 9pt; color: #334155; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                                .card-name { font-size: 9pt; font-weight: 800; color: #0f172a; line-height: 1.1; }
+                                .card-meta { font-size: 6.5pt; color: #475569; margin-top: 0.3mm; }
+                                .card-nis { font-size: 6pt; font-family: monospace; color: #64748b; }
+                                .card-barcode { text-align: center; }
+                                .card-barcode svg { width: 100%; max-width: 58mm; height: auto; }
+                                .card-footer { font-size: 5pt; color: #94a3b8; text-align: center; font-style: italic; }
+                                .card-ttd { width: 24mm; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; border-left: 1px dashed #e2e8f0; padding-left: 2mm; flex-shrink: 0; }
+                                .ttd-label { font-size: 5.5pt; color: #64748b; text-align: center; margin-bottom: 0.5mm; }
+                                .ttd-img { width: 20mm; height: 11mm; object-fit: contain; }
+                                .ttd-space { width: 20mm; height: 11mm; }
+                                .ttd-line { border-top: 1px solid #334155; width: 20mm; margin-bottom: 0.5mm; }
+                                .ttd-name { font-size: 5.5pt; font-weight: 800; color: #0f172a; text-align: center; line-height: 1.1; }
+                                .ttd-nip { font-size: 5pt; color: #64748b; text-align: center; }
                             </style>
                         </head>
                         <body>
                             <div class="card-item">
                                 <div class="card-header">
-                                    ${logoUrl ? `<img src="${logoUrl}" class="card-logo">` : `<div class="card-logo-placeholder">TKA</div>`}
-                                    <div class="card-header-text">
+                                    ${logoUrl ? `<img src="${logoUrl}" class="card-logo">` : `<div class="card-logo-ph">TKA</div>`}
+                                    <div style="flex:1;min-width:0;">
                                         <div class="card-school">${schoolName}</div>
-                                        <div class="card-title">KARTU PESERTA BIMBINGAN TKA</div>
+                                        <div class="card-title">${judul}</div>
                                     </div>
                                 </div>
                                 <div class="card-body">
-                                    <div class="card-avatar">${initial}</div>
-                                    <div class="card-info">
-                                        <div class="card-name">${s.nama}</div>
-                                        <div class="card-meta">Kelas: <b>${className}</b></div>
-                                        <div class="card-meta">NIS: <b>${s.nis || '-'}</b></div>
+                                    <div class="card-left">
+                                        <div class="card-info-row">
+                                            <div class="card-avatar">${initial}</div>
+                                            <div>
+                                                <div class="card-name">${s.nama}</div>
+                                                <div class="card-meta">Kelas: <b>${className}</b>${tahunAjaran ? ` &nbsp;|&nbsp; TA: ${tahunAjaran}` : ''}</div>
+                                                <div class="card-nis">NIS: ${s.nis || '-'}</div>
+                                            </div>
+                                        </div>
+                                        <div class="card-barcode">${barcodeSvg}</div>
+                                        ${footer ? `<div class="card-footer">${footer}</div>` : ''}
                                     </div>
-                                </div>
-                                <div class="card-barcode">
-                                    ${barcodeSvg}
+                                    ${(kepsek || ttdUrl) ? `
+                                    <div class="card-ttd">
+                                        <div class="ttd-label">Mengetahui,</div>
+                                        ${ttdUrl ? `<img src="${ttdUrl}" class="ttd-img">` : `<div class="ttd-space"></div>`}
+                                        <div class="ttd-line"></div>
+                                        <div class="ttd-name">${kepsek}</div>
+                                        ${nipKepsek ? `<div class="ttd-nip">${nipKepsek}</div>` : ''}
+                                    </div>
+                                    ` : ''}
                                 </div>
                             </div>
                             ` + '<scr' + 'ipt>' + `
