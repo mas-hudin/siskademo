@@ -4767,13 +4767,28 @@
 
                     statusText.innerText = 'Kamera aktif. Dekatkan barcode siswa ke kotak pemindai...';
 
+                    // Debounce: simpan kode terakhir agar tidak scan ganda dalam 2.5 detik
+                    let lastScannedCode = null;
+                    let debounceTimer = null;
+
                     const onDetected = (rawCode) => {
                         if (!rawCode || !this.isScanningCamera) return;
-                        statusText.innerText = `Terdeteksi: ${rawCode}! Memproses...`;
+                        // Abaikan jika barcode sama terdeteksi dalam 2.5 detik terakhir
+                        if (rawCode === lastScannedCode) return;
+                        lastScannedCode = rawCode;
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => { lastScannedCode = null; }, 2500);
+
+                        // Tampilkan feedback singkat, lalu kamera tetap standby untuk scan berikutnya
+                        statusText.innerText = `✅ Terdeteksi: ${rawCode} — Memproses...`;
                         this.processBarcode(rawCode);
-                        this.stopCameraScanner();
-                        const container = document.getElementById('btka-camera-container');
-                        if (container) container.classList.add('hidden');
+
+                        // Kembalikan status ke standby setelah 2 detik (kamera TIDAK dimatikan)
+                        setTimeout(() => {
+                            if (this.isScanningCamera) {
+                                statusText.innerText = 'Kamera aktif. Dekatkan barcode siswa berikutnya...';
+                            }
+                        }, 2000);
                     };
 
                     // === COBA ZXing terlebih dahulu ===
@@ -4832,6 +4847,7 @@
                     this.isScanningCamera = false;
                     if (this.zxingCodeReader) {
                         try { this.zxingCodeReader.reset(); } catch(e) {}
+                        this.zxingCodeReader = null; // null agar tombol bisa dipakai lagi
                     }
                     if (this.cameraStream) {
                         this.cameraStream.getTracks().forEach(t => t.stop());
