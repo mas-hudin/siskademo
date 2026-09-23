@@ -2012,13 +2012,15 @@
         const DB = {
             isGAS: (typeof google !== 'undefined' && google.script && google.script.run),
 
-            // URL GAS SISKA — sumber data utama untuk semua perangkat
-            // Ganti URL ini jika GAS di-deploy ulang dengan URL baru
-            GAS_API_URL: localStorage.getItem('db_gas_sync_url') || '',
+            // URL GAS SISKA — hardcode agar semua perangkat otomatis tahu tanpa perlu setting
+            // localStorage hanya sebagai override jika URL GAS berubah (deploy ulang)
+            GAS_API_URL: localStorage.getItem('db_gas_sync_url') ||
+                         'https://script.google.com/a/macros/guru.smp.belajar.id/s/AKfycby1niTmOwEtRdYPcUzKlQNFiejKfYOv2p67kdh0cGwVpcDkFHPXmm3BQ09-N_2bhoEh/exec',
 
             generateId: function() {
                 return 'ID' + Math.random().toString(36).substr(2, 9).toUpperCase();
             },
+
 
 
             init: function() {
