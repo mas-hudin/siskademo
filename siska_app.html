@@ -379,6 +379,9 @@
                             <button type="button" onclick="app.dashboard.setMode('tka')" id="btn-dash-mode-tka" class="dash-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
                                 <i class="fa-solid fa-award mr-1 text-emerald-500"></i> Asesmen TKA
                             </button>
+                            <button type="button" onclick="app.dashboard.setMode('btka')" id="btn-dash-mode-btka" class="dash-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
+                                <i class="fa-solid fa-qrcode mr-1 text-cyan-500"></i> Presensi Bimbingan TKA
+                            </button>
                         </div>
                     </div>
 
@@ -1474,7 +1477,6 @@
                         </div>
 
                     </div>
-                </div>
 
                 <!-- PAGE: RIWAYAT PESAN WA -->
                 <div id="page-riwayat" class="page-section">
@@ -1550,6 +1552,9 @@
                             </button>
                             <button id="btn-lap-mode-tka" type="button" onclick="app.laporan.setAbsenMode('tka')" class="lap-mode-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
                                 <i class="fa-solid fa-graduation-cap mr-1"></i> Asesmen TKA
+                            </button>
+                            <button id="btn-lap-mode-btka" type="button" onclick="app.laporan.setAbsenMode('btka')" class="lap-mode-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
+                                <i class="fa-solid fa-qrcode mr-1 text-cyan-500"></i> Presensi Bimbingan TKA
                             </button>
                         </div>
                     </div>
@@ -1651,12 +1656,13 @@
                 </div>
 
                 <!-- PAGE: LAPORAN BUKU PIKET GURU -->
-                <div id="page-bukupiket" class="page-section">
+                <!-- PAGE: LAPORAN BUKU PIKET GURU -->
+                <div id="page-bukupiket" class="page-section pb-16">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-5xl mx-auto">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 pb-4 mb-6 gap-4">
                             <div>
-                                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-book-bookmark text-amber-500 mr-2"></i> Laporan Buku Piket Guru Harian</h3>
-                                <p class="text-xs text-slate-400 mt-1">Gunakan fitur ini untuk membuat dan mencetak laporan resmi Buku Piket Guru (Format Ukuran Folio / 1 Halaman Pas).</p>
+                                <h3 class="text-lg font-bold text-slate-800 flex items-center" id="piket-main-title"><i class="fa-solid fa-book-bookmark text-amber-500 mr-2"></i> Laporan Buku Piket Guru Harian</h3>
+                                <p class="text-xs text-slate-400 mt-1" id="piket-header-desc">Gunakan fitur ini untuk membuat dan mencetak laporan resmi Buku Piket Guru (Format Ukuran Folio / 1 Halaman Pas).</p>
                             </div>
                             <div class="flex items-center space-x-2">
                                 <button onclick="app.bukupiket.printPDF()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md flex items-center space-x-1.5 transition-all">
@@ -1665,6 +1671,32 @@
                             </div>
                         </div>
 
+                        <!-- SWITCHER MODE PRESENSI BUKU PIKET -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Pilih Jenis Presensi Buku Piket:</h4>
+                                    <p class="text-[11px] text-slate-500" id="piket-mode-desc">Menampilkan rekap buku piket kegiatan belajar mengajar harian reguler.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1.5 bg-white p-1.5 rounded-xl border border-slate-200 self-start sm:self-auto shadow-sm">
+                                <button type="button" onclick="app.bukupiket.setMode('reguler')" id="btn-piket-mode-reguler" class="piket-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-50 text-primary border border-primary/20 shadow-xs">
+                                    <i class="fa-solid fa-calendar-day mr-1"></i> Presensi Harian
+                                </button>
+                                <button type="button" onclick="app.bukupiket.setMode('sumatif')" id="btn-piket-mode-sumatif" class="piket-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 border border-transparent">
+                                    <i class="fa-solid fa-file-pen mr-1 text-amber-500"></i> Asesmen Sumatif
+                                </button>
+                                <button type="button" onclick="app.bukupiket.setMode('tka')" id="btn-piket-mode-tka" class="piket-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 border border-transparent">
+                                    <i class="fa-solid fa-award mr-1 text-emerald-500"></i> Asesmen TKA
+                                </button>
+                                <button type="button" onclick="app.bukupiket.setMode('btka')" id="btn-piket-mode-btka" class="piket-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 border border-transparent">
+                                    <i class="fa-solid fa-qrcode mr-1 text-cyan-500"></i> Presensi Bimbingan TKA
+                                </button>
+                            </div>
+                        </div>
                         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6 space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
@@ -2023,6 +2055,9 @@
 
 
             init: function() {
+                // Jika berjalan di Google Apps Script (Production), data murni dari Spreadsheet
+                if (DB.isGAS) return;
+
                 const seedKelas = [{"id":"IDB415GW307","id_kelas":"IDB415GW307","kode":"7A","kode_kelas":"7A","nama":"KELAS 7 A","nama_kelas":"KELAS 7 A","wali":"Wali Kelas 7A, S.Pd","wali_kelas":"Wali Kelas 7A, S.Pd","status":"Aktif"},{"id":"K002","id_kelas":"K002","kode":"7B","kode_kelas":"7B","nama":"KELAS 7 B","nama_kelas":"KELAS 7 B","wali":"Wali Kelas 7B, S.Pd","wali_kelas":"Wali Kelas 7B, S.Pd","status":"Aktif"},{"id":"K003","id_kelas":"K003","kode":"7C","kode_kelas":"7C","nama":"KELAS 7 C","nama_kelas":"KELAS 7 C","wali":"Wali Kelas 7C, S.Pd","wali_kelas":"Wali Kelas 7C, S.Pd","status":"Aktif"},{"id":"K004","id_kelas":"K004","kode":"7D","kode_kelas":"7D","nama":"KELAS 7 D","nama_kelas":"KELAS 7 D","wali":"Wali Kelas 7D, S.Pd","wali_kelas":"Wali Kelas 7D, S.Pd","status":"Aktif"}];
                 const seedSiswa = [{"id":"IDWPZ4XX9AW","id_siswa":"IDWPZ4XX9AW","nis":"13126","nama":"Abdu Ariqin Halim","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDTN3IPXNTJ","id_siswa":"IDTN3IPXNTJ","nis":"13131","nama":"ADONIA ALEXA BILQIS","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDYT8HNH0O6","id_siswa":"IDYT8HNH0O6","nis":"13138","nama":"AHMAD MUSHOFA ALI","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDKSMSIRXPT","id_siswa":"IDKSMSIRXPT","nis":"13148","nama":"ALFIAH NURUL RAMADHANI","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDJUPA9YGH1","id_siswa":"IDJUPA9YGH1","nis":"13153","nama":"ALIM MAKFUD","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDTORJ5JRQD","id_siswa":"IDTORJ5JRQD","nis":"13161","nama":"APRILYA SALSABILA ZAHRAH","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDWHXPKJ1DE","id_siswa":"IDWHXPKJ1DE","nis":"13172","nama":"AYU DEWI RIYANTI","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDLJJ7QTNA4","id_siswa":"IDLJJ7QTNA4","nis":"13176","nama":"BAGUS WAHYU WIJAKSONO","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDVG446AEL7","id_siswa":"IDVG446AEL7","nis":"13187","nama":"Dhias Ratna Dhilla","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDEH2YMDIW6","id_siswa":"IDEH2YMDIW6","nis":"13194","nama":"EGI SAPUTRA","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDOQSHU1RH6","id_siswa":"IDOQSHU1RH6","nis":"13205","nama":"FARHAN BAYHAQI","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDYFMS127FP","id_siswa":"IDYFMS127FP","nis":"13217","nama":"GISELA RIYANTI","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDGNQ894AL8","id_siswa":"IDGNQ894AL8","nis":"13218","nama":"GUNTUR SAKETI","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"ID50I97P8ON","id_siswa":"ID50I97P8ON","nis":"13229","nama":"IQBAL RIZKI DERMAWAN","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDUWPT1CJQ9","id_siswa":"IDUWPT1CJQ9","nis":"13232","nama":"JIHAN TALITA ALMAIRAH","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDNTYWUN377","id_siswa":"IDNTYWUN377","nis":"13240","nama":"Kirana Nur Arizky","jk":"P","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDKMHIY87HN","id_siswa":"IDKMHIY87HN","nis":"13250","nama":"MUHAMAD ALVIN APRILIO PRATAMA","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"ID92LBYVBZ4","id_siswa":"ID92LBYVBZ4","nis":"13257","nama":"MUHAMMAD ALWY MUSYAFFA","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""},{"id":"IDZV4TDMUG9","id_siswa":"IDZV4TDMUG9","nis":"13265","nama":"MUHAMMAD VICKY","jk":"L","id_kelas":"IDB415GW307","ortu":"","nama_ortu":"","hp":"","no_hp":"","status_siswa":"Aktif","alasan_tidak_aktif":""}];
 
@@ -2381,7 +2416,7 @@
             syncWithDatabase: async function() {
                 if (DB.isGAS) {
                     try {
-                        const [kelasData, siswaData, grupwaData, logData, settingData, absenData, absenSumatifData, absenTkaData, pengumumanData, piketData] = await Promise.all([
+                        const [kelasData, siswaData, grupwaData, logData, settingData, absenData, absenSumatifData, absenTkaData, absenBtkaData, pengumumanData, piketData] = await Promise.all([
                             DB.get('kelas'),
                             DB.get('siswa'),
                             DB.get('grupwa'),
@@ -2390,6 +2425,7 @@
                             DB.get('absen'),
                             DB.get('absen_sumatif'),
                             DB.get('absen_tka'),
+                            DB.get('absen_bimbingan_tka'),
                             DB.get('pengumuman'),
                             DB.get('gurupiket')
                         ]);
@@ -2402,6 +2438,7 @@
                         this.state.absen = absenData;
                         this.state.absen_sumatif = absenSumatifData || [];
                         this.state.absen_tka = absenTkaData || [];
+                        this.state.absen_bimbingan_tka = absenBtkaData || [];
                         this.state.pengumuman = pengumumanData;
                         this.state.gurupiket = piketData;
 
@@ -2421,6 +2458,7 @@
                     this.state.absen    = JSON.parse(localStorage.getItem('db_absen')         || '[]');
                     this.state.absen_sumatif = JSON.parse(localStorage.getItem('db_absen_sumatif') || '[]');
                     this.state.absen_tka     = JSON.parse(localStorage.getItem('db_absen_tka')     || '[]');
+                    this.state.absen_bimbingan_tka = JSON.parse(localStorage.getItem('db_btka_scans') || localStorage.getItem('db_absen_bimbingan_tka') || '[]');
                     this.state.pengumuman    = JSON.parse(localStorage.getItem('db_pengumuman')    || '[]');
                     this.state.gurupiket     = JSON.parse(localStorage.getItem('db_gurupiket')     || '[]');
 
@@ -2454,6 +2492,20 @@
                     }
                 }
             },
+            getBtkaAttendance: function() {
+                let scans = [];
+                try {
+                    scans = JSON.parse(localStorage.getItem('db_btka_scans') || '[]');
+                } catch(e) { scans = []; }
+                if (this.state && this.state.absen_bimbingan_tka && this.state.absen_bimbingan_tka.length > 0) {
+                    const map = new Map();
+                    scans.forEach(s => { const k = s.id_absen || (s.id_siswa + '_' + (s.tanggal || '').split('T')[0]); map.set(k, s); });
+                    this.state.absen_bimbingan_tka.forEach(s => { const k = s.id_absen || (s.id_siswa + '_' + (s.tanggal || '').split('T')[0]); if (!map.has(k)) map.set(k, s); });
+                    scans = Array.from(map.values());
+                }
+                return scans;
+            },
+
             propagateUIComponents: function() {
                 this.helper.populateSelectKelas('siswa-kelas');
                 this.helper.populateSelectKelas('grupwa-kelas');
@@ -2620,14 +2672,15 @@
                     const buttons = {
                         'reguler': document.getElementById('btn-dash-mode-reguler'),
                         'sumatif': document.getElementById('btn-dash-mode-sumatif'),
-                        'tka': document.getElementById('btn-dash-mode-tka')
+                        'tka': document.getElementById('btn-dash-mode-tka'),
+                        'btka': document.getElementById('btn-dash-mode-btka')
                     };
                     for (let key in buttons) {
                         const btn = buttons[key];
                         if (!btn) continue;
                         if (key === mode) {
                             btn.className = 'dash-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm ' + 
-                                (mode === 'sumatif' ? 'text-amber-600' : (mode === 'tka' ? 'text-emerald-600' : 'text-primary'));
+                                (mode === 'sumatif' ? 'text-amber-600' : (mode === 'tka' ? 'text-emerald-600' : (mode === 'btka' ? 'text-cyan-600' : 'text-primary')));
                         } else {
                             btn.className = 'dash-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
                         }
@@ -2648,6 +2701,11 @@
                         if (labelSakit) labelSakit.innerText = 'Sakit (TKA)';
                         if (labelIzin) labelIzin.innerText = 'Izin (TKA)';
                         if (labelAlpa) labelAlpa.innerText = 'Alpa (TKA)';
+                    } else if (mode === 'btka') {
+                        if (descEl) descEl.innerText = 'Menampilkan statistik kehadiran kegiatan Bimbingan TKA (Scan Barcode & Piket) hari ini.';
+                        if (labelSakit) labelSakit.innerText = 'Sakit (BTKA)';
+                        if (labelIzin) labelIzin.innerText = 'Izin (BTKA)';
+                        if (labelAlpa) labelAlpa.innerText = 'Alpa / Belum Scan';
                     } else {
                         if (descEl) descEl.innerText = 'Menampilkan statistik ketidakhadiran kegiatan belajar mengajar harian.';
                         if (labelSakit) labelSakit.innerText = 'Sakit Hari Ini';
@@ -2674,16 +2732,31 @@
                     let targetAbsenSource = app.state.absen || [];
                     if (this.currentMode === 'sumatif') targetAbsenSource = app.state.absen_sumatif || [];
                     if (this.currentMode === 'tka') targetAbsenSource = app.state.absen_tka || [];
+                    if (this.currentMode === 'btka') targetAbsenSource = app.getBtkaAttendance();
+                    if (this.currentMode === 'btka') targetAbsenSource = app.getBtkaAttendance();
 
-                    const listAbsen = targetAbsenSource.filter(a => {
-                        if (!a.tanggal) return false;
-                        const t = a.tanggal.toString().trim();
-                        return t === todayString || t.startsWith(todayString);
-                    });
-                    
-                    const sakit = listAbsen.filter(a => a.status === 'Sakit').length;
-                    const izin = listAbsen.filter(a => a.status === 'Izin').length;
-                    const alpa = listAbsen.filter(a => a.status === 'Alpa').length;
+                    let sakit = 0, izin = 0, alpa = 0;
+                    if (this.currentMode === 'btka') {
+                        const todayBtka = (targetAbsenSource || []).filter(a => {
+                            if (!a.tanggal) return false;
+                            const t = a.tanggal.toString().trim().split('T')[0];
+                            return t === todayString;
+                        });
+                        const hadirCount = todayBtka.filter(a => a.status === 'Hadir').length;
+                        sakit = todayBtka.filter(a => a.status === 'Sakit').length;
+                        izin = todayBtka.filter(a => a.status === 'Izin').length;
+                        const expAlpa = todayBtka.filter(a => a.status === 'Alpa').length;
+                        alpa = Math.max(expAlpa, statsSiswa - (hadirCount + sakit + izin));
+                    } else {
+                        const listAbsen = targetAbsenSource.filter(a => {
+                            if (!a.tanggal) return false;
+                            const t = a.tanggal.toString().trim();
+                            return t === todayString || t.startsWith(todayString);
+                        });
+                        sakit = listAbsen.filter(a => a.status === 'Sakit').length;
+                        izin = listAbsen.filter(a => a.status === 'Izin').length;
+                        alpa = listAbsen.filter(a => a.status === 'Alpa').length;
+                    }
 
                     document.getElementById('dash-total-kelas').innerText = statsKelas;
                     document.getElementById('dash-total-siswa').innerText = statsSiswa;
@@ -2747,6 +2820,10 @@
                         targetAbsenSource = app.state.absen_tka || [];
                         modeLabel = 'Asesmen TKA';
                     }
+                    if (this.currentMode === 'btka') {
+                        targetAbsenSource = app.getBtkaAttendance();
+                        modeLabel = 'Presensi Bimbingan TKA';
+                    }
 
                     let totalSiswa = 0;
                     let sakitCount = 0;
@@ -2769,12 +2846,19 @@
                             return d === todayStr;
                         });
 
-                        sakitCount = todayAbsenceList.filter(a => a.status === 'Sakit').length;
-                        izinCount = todayAbsenceList.filter(a => a.status === 'Izin').length;
-                        alpaCount = todayAbsenceList.filter(a => a.status === 'Alpa').length;
-
-                        const nonHadirCount = sakitCount + izinCount + alpaCount;
-                        hadirCount = Math.max(0, totalSiswa - nonHadirCount);
+                        if (this.currentMode === 'btka') {
+                            hadirCount = todayAbsenceList.filter(a => a.status === 'Hadir').length;
+                            sakitCount = todayAbsenceList.filter(a => a.status === 'Sakit').length;
+                            izinCount = todayAbsenceList.filter(a => a.status === 'Izin').length;
+                            const expAlpa = todayAbsenceList.filter(a => a.status === 'Alpa').length;
+                            alpaCount = Math.max(expAlpa, totalSiswa - (hadirCount + sakitCount + izinCount));
+                        } else {
+                            sakitCount = todayAbsenceList.filter(a => a.status === 'Sakit').length;
+                            izinCount = todayAbsenceList.filter(a => a.status === 'Izin').length;
+                            alpaCount = todayAbsenceList.filter(a => a.status === 'Alpa').length;
+                            const nonHadirCount = sakitCount + izinCount + alpaCount;
+                            hadirCount = Math.max(0, totalSiswa - nonHadirCount);
+                        }
                     } else {
                         const className = app.helper.getKelasName(selectedClassId);
                         document.getElementById('chart-class-title').innerText = `Rincian Kehadiran: ${className} (${modeLabel})`;
@@ -2784,7 +2868,7 @@
 
                         const todayAbsenceList = targetAbsenSource.filter(a => {
                             const d = (a.tanggal || '').toString().trim().split('T')[0];
-                            return (a.id_kelas === selectedClassId && d === todayStr);
+                            return ((a.id_kelas === selectedClassId || a.class_id === selectedClassId) && d === todayStr);
                         });
 
                         if (todayAbsenceList.length === 0) {
@@ -2796,12 +2880,19 @@
                             if (unabsentNotif) unabsentNotif.classList.add('hidden');
                         }
 
-                        sakitCount = todayAbsenceList.filter(a => a.status === 'Sakit').length;
-                        izinCount = todayAbsenceList.filter(a => a.status === 'Izin').length;
-                        alpaCount = todayAbsenceList.filter(a => a.status === 'Alpa').length;
-
-                        const nonHadirCount = sakitCount + izinCount + alpaCount;
-                        hadirCount = Math.max(0, totalSiswa - nonHadirCount);
+                        if (this.currentMode === 'btka') {
+                            hadirCount = todayAbsenceList.filter(a => a.status === 'Hadir').length;
+                            sakitCount = todayAbsenceList.filter(a => a.status === 'Sakit').length;
+                            izinCount = todayAbsenceList.filter(a => a.status === 'Izin').length;
+                            const expAlpa = todayAbsenceList.filter(a => a.status === 'Alpa').length;
+                            alpaCount = Math.max(expAlpa, totalSiswa - (hadirCount + sakitCount + izinCount));
+                        } else {
+                            sakitCount = todayAbsenceList.filter(a => a.status === 'Sakit').length;
+                            izinCount = todayAbsenceList.filter(a => a.status === 'Izin').length;
+                            alpaCount = todayAbsenceList.filter(a => a.status === 'Alpa').length;
+                            const nonHadirCount = sakitCount + izinCount + alpaCount;
+                            hadirCount = Math.max(0, totalSiswa - nonHadirCount);
+                        }
                     }
 
                     const totalNonHadir = sakitCount + izinCount + alpaCount;
@@ -2871,6 +2962,7 @@
                     let targetAbsenSource = app.state.absen || [];
                     if (this.currentMode === 'sumatif') targetAbsenSource = app.state.absen_sumatif || [];
                     if (this.currentMode === 'tka') targetAbsenSource = app.state.absen_tka || [];
+                    if (this.currentMode === 'btka') targetAbsenSource = app.getBtkaAttendance();
 
                     const listKelas = app.state.kelas;
                     const activeStudents = app.state.siswa.filter(s => (s.status_siswa || 'Aktif') === 'Aktif');
@@ -2886,16 +2978,29 @@
                         const studentsInClass = activeStudents.filter(s => (s.id_kelas === classId || s.class_id === classId));
                         const totalSiswaCount = studentsInClass.length;
 
-                        const todayAbsenceList = targetAbsenSource.filter(a => {
-                            const d = (a.tanggal || '').toString().trim().split('T')[0];
-                            return (a.id_kelas === classId && d === todayStr);
-                        });
-                        
-                        const sakit = todayAbsenceList.filter(a => a.status === 'Sakit').length;
-                        const izin = todayAbsenceList.filter(a => a.status === 'Izin').length;
-                        const alpa = todayAbsenceList.filter(a => a.status === 'Alpa').length;
-                        const nonHadir = sakit + izin + alpa;
-                        const hadir = Math.max(0, totalSiswaCount - nonHadir);
+                        let hadir = 0, sakit = 0, izin = 0, alpa = 0, nonHadir = 0;
+                        if (this.currentMode === 'btka') {
+                            const todayBtka = (targetAbsenSource || []).filter(a => {
+                                const d = (a.tanggal || '').toString().trim().split('T')[0];
+                                return ((a.id_kelas === classId || a.class_id === classId) && d === todayStr);
+                            });
+                            hadir = todayBtka.filter(a => a.status === 'Hadir').length;
+                            sakit = todayBtka.filter(a => a.status === 'Sakit').length;
+                            izin = todayBtka.filter(a => a.status === 'Izin').length;
+                            const expAlpa = todayBtka.filter(a => a.status === 'Alpa').length;
+                            alpa = Math.max(expAlpa, totalSiswaCount - (hadir + sakit + izin));
+                            nonHadir = sakit + izin + alpa;
+                        } else {
+                            const todayAbsenceList = targetAbsenSource.filter(a => {
+                                const d = (a.tanggal || '').toString().trim().split('T')[0];
+                                return (a.id_kelas === classId && d === todayStr);
+                            });
+                            sakit = todayAbsenceList.filter(a => a.status === 'Sakit').length;
+                            izin = todayAbsenceList.filter(a => a.status === 'Izin').length;
+                            alpa = todayAbsenceList.filter(a => a.status === 'Alpa').length;
+                            nonHadir = sakit + izin + alpa;
+                            hadir = Math.max(0, totalSiswaCount - nonHadir);
+                        }
 
                         let persenTidakHadir = 0;
                         if (totalSiswaCount > 0) {
@@ -5195,6 +5300,9 @@
                     this.showInstantPopup(found, jamStr, className);
                     this.renderStatsAndRecent();
                     this.loadMonitoring();
+                    if (app.dashboard && typeof app.dashboard.load === 'function') app.dashboard.load();
+                    if (app.bukupiket && typeof app.bukupiket.loadByTanggal === 'function') app.bukupiket.loadByTanggal();
+                    if (app.laporan && typeof app.laporan.update === 'function') app.laporan.update();
 
                     if (DB.isGAS) {
                         google.script.run
@@ -5823,6 +5931,9 @@
                     localStorage.setItem('db_btka_scans', JSON.stringify(records));
                     this.loadMonitoring();
                     this.renderStatsAndRecent();
+                    if (app.dashboard && typeof app.dashboard.load === 'function') app.dashboard.load();
+                    if (app.bukupiket && typeof app.bukupiket.loadByTanggal === 'function') app.bukupiket.loadByTanggal();
+                    if (app.laporan && typeof app.laporan.update === 'function') app.laporan.update();
 
                     if (DB.isGAS) {
                         google.script.run
@@ -6354,6 +6465,51 @@
 
             // BUKU PIKET DENGAN UKURAN FOLIO/F4 PAS 1 HALAMAN & TANPA BARIS KOSONG BERLEBIH
             bukupiket: {
+                currentMode: 'reguler',
+
+                setMode: function(mode) {
+                    this.currentMode = mode;
+                    const buttons = {
+                        'reguler': document.getElementById('btn-piket-mode-reguler'),
+                        'sumatif': document.getElementById('btn-piket-mode-sumatif'),
+                        'tka': document.getElementById('btn-piket-mode-tka'),
+                        'btka': document.getElementById('btn-piket-mode-btka')
+                    };
+                    for (let key in buttons) {
+                        const btn = buttons[key];
+                        if (!btn) continue;
+                        if (key === mode) {
+                            btn.className = 'piket-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs border ' + 
+                                (mode === 'sumatif' ? 'text-amber-700 bg-amber-50 border-amber-300' : 
+                                (mode === 'tka' ? 'text-emerald-700 bg-emerald-50 border-emerald-300' : 
+                                (mode === 'btka' ? 'text-cyan-700 bg-cyan-50 border-cyan-300' : 'text-primary bg-sky-50 border-primary/30')));
+                        } else {
+                            btn.className = 'piket-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 border border-transparent';
+                        }
+                    }
+                    const descEl = document.getElementById('piket-mode-desc');
+                    const titleEl = document.getElementById('piket-main-title');
+                    const subdescEl = document.getElementById('piket-header-desc');
+                    if (mode === 'sumatif') {
+                        if (descEl) descEl.innerText = 'Menampilkan rekap buku piket kegiatan Asesmen Sumatif.';
+                        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-file-pen text-amber-500 mr-2"></i> Laporan Buku Piket Asesmen Sumatif';
+                        if (subdescEl) subdescEl.innerText = 'Format resmi Buku Piket Asesmen Sumatif (Ukuran Folio / 1 Halaman Pas).';
+                    } else if (mode === 'tka') {
+                        if (descEl) descEl.innerText = 'Menampilkan rekap buku piket kegiatan Asesmen TKA.';
+                        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-award text-emerald-500 mr-2"></i> Laporan Buku Piket Asesmen TKA';
+                        if (subdescEl) subdescEl.innerText = 'Format resmi Buku Piket Asesmen TKA (Ukuran Folio / 1 Halaman Pas).';
+                    } else if (mode === 'btka') {
+                        if (descEl) descEl.innerText = 'Menampilkan rekap buku piket kegiatan Presensi Bimbingan TKA (Scan Barcode & Piket).';
+                        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-qrcode text-cyan-500 mr-2"></i> Laporan Buku Piket Bimbingan TKA';
+                        if (subdescEl) subdescEl.innerText = 'Format resmi Buku Piket Bimbingan TKA realtime dari hasil scan & monitoring piket (Ukuran Folio / 1 Halaman Pas).';
+                    } else {
+                        if (descEl) descEl.innerText = 'Menampilkan rekap buku piket kegiatan belajar mengajar harian reguler.';
+                        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-book-bookmark text-amber-500 mr-2"></i> Laporan Buku Piket Guru Harian';
+                        if (subdescEl) subdescEl.innerText = 'Gunakan fitur ini untuk membuat dan mencetak laporan resmi Buku Piket Guru (Format Ukuran Folio / 1 Halaman Pas).';
+                    }
+                    this.loadByTanggal();
+                },
+
                 getHariFromDate: function(dateIsoStr) {
                     if (!dateIsoStr) return 'SENIN';
                     const parts = dateIsoStr.split('-');
@@ -6389,21 +6545,54 @@
                     }
 
                     const piketHariIni = (app.state.gurupiket || []).filter(p => p.hari === hariName).sort((a,b) => a.urutan - b.urutan);
-                    const listAbsenHari = (app.state.absen || []).filter(a => a.tanggal === dateVal && a.status !== 'Nihil' && a.status !== 'Hadir');
+                    let targetAbsenSource = app.state.absen || [];
+                    let modeTitleLabel = 'GURU';
+                    if (this.currentMode === 'sumatif') { targetAbsenSource = app.state.absen_sumatif || []; modeTitleLabel = 'ASESMEN SUMATIF'; }
+                    else if (this.currentMode === 'tka') { targetAbsenSource = app.state.absen_tka || []; modeTitleLabel = 'ASESMEN TKA'; }
+                    else if (this.currentMode === 'btka') { targetAbsenSource = app.getBtkaAttendance(); modeTitleLabel = 'BIMBINGAN TKA'; }
+
                     const listSiswa = app.state.siswa || [];
+                    const activeStudents = listSiswa.filter(s => (s.status_siswa || 'Aktif') === 'Aktif');
+                    const activeSiswaCount = activeStudents.length;
+                    let studentAbsenceDetails = [];
+                    let totalSiswaHadir = 0;
 
-                    const studentAbsenceDetails = [];
-                    listAbsenHari.forEach(a => {
-                        const st = listSiswa.find(s => (s.id === a.id_siswa || s.id_siswa === a.id_siswa));
-                        const namaSiswa = st ? (st.nama || st.nama_siswa) : 'Siswa';
-                        const namaKelas = app.helper.getKelasName(a.id_kelas);
-                        
-                        let statusAbbr = 'S';
-                        if (a.status === 'Izin') statusAbbr = 'I';
-                        if (a.status === 'Alpa') statusAbbr = 'A';
-
-                        studentAbsenceDetails.push({ nama: namaSiswa, kelas: namaKelas, status: statusAbbr });
-                    });
+                    if (this.currentMode === 'btka') {
+                        const dayRecords = (targetAbsenSource || []).filter(a => {
+                            const d = (a.tanggal || '').toString().trim().split('T')[0];
+                            return d === dateVal;
+                        });
+                        totalSiswaHadir = dayRecords.filter(a => a.status === 'Hadir').length;
+                        activeStudents.forEach(s => {
+                            const sid = s.id || s.id_siswa;
+                            const rec = dayRecords.find(r => r.id_siswa === sid);
+                            const namaKelas = app.helper.getKelasName(s.id_kelas || s.class_id);
+                            if (!rec) {
+                                studentAbsenceDetails.push({ nama: s.nama || '-', kelas: namaKelas, status: 'A' });
+                            } else if (rec.status !== 'Hadir') {
+                                let stAbbr = 'A';
+                                if (rec.status === 'Sakit') stAbbr = 'S';
+                                if (rec.status === 'Izin') stAbbr = 'I';
+                                studentAbsenceDetails.push({ nama: s.nama || '-', kelas: namaKelas, status: stAbbr });
+                            }
+                        });
+                    } else {
+                        const listAbsenHari = (targetAbsenSource || []).filter(a => {
+                            const d = (a.tanggal || '').toString().trim().split('T')[0];
+                            return d === dateVal && a.status !== 'Nihil' && a.status !== 'Hadir';
+                        });
+                        listAbsenHari.forEach(a => {
+                            const st = listSiswa.find(s => (s.id === a.id_siswa || s.id_siswa === a.id_siswa));
+                            const namaSiswa = st ? (st.nama || st.nama_siswa) : 'Siswa';
+                            const namaKelas = app.helper.getKelasName(a.id_kelas);
+                            let statusAbbr = 'S';
+                            if (a.status === 'Izin') statusAbbr = 'I';
+                            if (a.status === 'Alpa') statusAbbr = 'A';
+                            studentAbsenceDetails.push({ nama: namaSiswa, kelas: namaKelas, status: statusAbbr });
+                        });
+                        const totalSiswaTidakHadir = studentAbsenceDetails.length;
+                        totalSiswaHadir = Math.max(0, activeSiswaCount - totalSiswaTidakHadir);
+                    }
 
                     const rawGuruAbsent = document.getElementById('piket-guru-absent').value || '';
                     const rawUraianTugas = document.getElementById('piket-uraian-tugas').value || '';
@@ -6411,9 +6600,6 @@
                     const listGuruAbsent = this.parseInputToList(rawGuruAbsent);
                     const listUraianTugas = this.parseInputToList(rawUraianTugas);
 
-                    const activeSiswaCount = listSiswa.filter(s => (s.status_siswa || 'Aktif') === 'Aktif').length;
-                    const totalSiswaTidakHadir = studentAbsenceDetails.length;
-                    const totalSiswaHadir = Math.max(0, activeSiswaCount - totalSiswaTidakHadir);
                     let persenKehadiran = 100;
                     if (activeSiswaCount > 0) {
                         persenKehadiran = ((totalSiswaHadir / activeSiswaCount) * 100).toFixed(1);
@@ -6447,7 +6633,7 @@
 
                     container.innerHTML = `
                         <div class="text-center font-black text-slate-900 text-sm tracking-wide uppercase mb-3">
-                            BUKU PIKET GURU ${schoolName} TAHUN PELAJARAN ${tapel}
+                            BUKU PIKET ${modeTitleLabel} ${schoolName} TAHUN PELAJARAN ${tapel}
                         </div>
 
                         <div class="flex justify-between items-center text-xs font-bold text-slate-800 mb-2">
@@ -6523,21 +6709,54 @@
                     }
 
                     const piketHariIni = (app.state.gurupiket || []).filter(p => p.hari === hariName).sort((a,b) => a.urutan - b.urutan);
-                    const listAbsenHari = (app.state.absen || []).filter(a => a.tanggal === dateVal && a.status !== 'Nihil' && a.status !== 'Hadir');
+                    let targetAbsenSource = app.state.absen || [];
+                    let modeTitleLabel = 'GURU';
+                    if (this.currentMode === 'sumatif') { targetAbsenSource = app.state.absen_sumatif || []; modeTitleLabel = 'ASESMEN SUMATIF'; }
+                    else if (this.currentMode === 'tka') { targetAbsenSource = app.state.absen_tka || []; modeTitleLabel = 'ASESMEN TKA'; }
+                    else if (this.currentMode === 'btka') { targetAbsenSource = app.getBtkaAttendance(); modeTitleLabel = 'BIMBINGAN TKA'; }
+
                     const listSiswa = app.state.siswa || [];
+                    const activeStudents = listSiswa.filter(s => (s.status_siswa || 'Aktif') === 'Aktif');
+                    const activeSiswaCount = activeStudents.length;
+                    let studentAbsenceDetails = [];
+                    let totalSiswaHadir = 0;
 
-                    const studentAbsenceDetails = [];
-                    listAbsenHari.forEach(a => {
-                        const st = listSiswa.find(s => (s.id === a.id_siswa || s.id_siswa === a.id_siswa));
-                        const namaSiswa = st ? (st.nama || st.nama_siswa) : 'Siswa';
-                        const namaKelas = app.helper.getKelasName(a.id_kelas);
-                        
-                        let statusAbbr = 'S';
-                        if (a.status === 'Izin') statusAbbr = 'I';
-                        if (a.status === 'Alpa') statusAbbr = 'A';
-
-                        studentAbsenceDetails.push({ nama: namaSiswa, kelas: namaKelas, status: statusAbbr });
-                    });
+                    if (this.currentMode === 'btka') {
+                        const dayRecords = (targetAbsenSource || []).filter(a => {
+                            const d = (a.tanggal || '').toString().trim().split('T')[0];
+                            return d === dateVal;
+                        });
+                        totalSiswaHadir = dayRecords.filter(a => a.status === 'Hadir').length;
+                        activeStudents.forEach(s => {
+                            const sid = s.id || s.id_siswa;
+                            const rec = dayRecords.find(r => r.id_siswa === sid);
+                            const namaKelas = app.helper.getKelasName(s.id_kelas || s.class_id);
+                            if (!rec) {
+                                studentAbsenceDetails.push({ nama: s.nama || '-', kelas: namaKelas, status: 'A' });
+                            } else if (rec.status !== 'Hadir') {
+                                let stAbbr = 'A';
+                                if (rec.status === 'Sakit') stAbbr = 'S';
+                                if (rec.status === 'Izin') stAbbr = 'I';
+                                studentAbsenceDetails.push({ nama: s.nama || '-', kelas: namaKelas, status: stAbbr });
+                            }
+                        });
+                    } else {
+                        const listAbsenHari = (targetAbsenSource || []).filter(a => {
+                            const d = (a.tanggal || '').toString().trim().split('T')[0];
+                            return d === dateVal && a.status !== 'Nihil' && a.status !== 'Hadir';
+                        });
+                        listAbsenHari.forEach(a => {
+                            const st = listSiswa.find(s => (s.id === a.id_siswa || s.id_siswa === a.id_siswa));
+                            const namaSiswa = st ? (st.nama || st.nama_siswa) : 'Siswa';
+                            const namaKelas = app.helper.getKelasName(a.id_kelas);
+                            let statusAbbr = 'S';
+                            if (a.status === 'Izin') statusAbbr = 'I';
+                            if (a.status === 'Alpa') statusAbbr = 'A';
+                            studentAbsenceDetails.push({ nama: namaSiswa, kelas: namaKelas, status: statusAbbr });
+                        });
+                        const totalSiswaTidakHadir = studentAbsenceDetails.length;
+                        totalSiswaHadir = Math.max(0, activeSiswaCount - totalSiswaTidakHadir);
+                    }
 
                     const rawGuruAbsent = document.getElementById('piket-guru-absent').value || '';
                     const rawUraianTugas = document.getElementById('piket-uraian-tugas').value || '';
@@ -6545,9 +6764,6 @@
                     const listGuruAbsent = this.parseInputToList(rawGuruAbsent);
                     const listUraianTugas = this.parseInputToList(rawUraianTugas);
 
-                    const activeSiswaCount = listSiswa.filter(s => (s.status_siswa || 'Aktif') === 'Aktif').length;
-                    const totalSiswaTidakHadir = studentAbsenceDetails.length;
-                    const totalSiswaHadir = Math.max(0, activeSiswaCount - totalSiswaTidakHadir);
                     let persenKehadiran = 100;
                     if (activeSiswaCount > 0) {
                         persenKehadiran = ((totalSiswaHadir / activeSiswaCount) * 100).toFixed(1);
@@ -6582,7 +6798,7 @@
                     printWindow.document.write(`
                         <html>
                         <head>
-                            <title>BUKU PIKET GURU - ${schoolName}</title>
+                            <title>BUKU PIKET ${modeTitleLabel} - ${schoolName}</title>
                             <style>
                                 /* UKURAN KERTAS FOLIO / F4 (215mm x 330mm) PAS 1 HALAMAN */
                                 @page { size: 215mm 330mm portrait; margin: 8mm 10mm; }
@@ -6601,7 +6817,7 @@
                             </style>
                         </head>
                         <body>
-                            <div class="title">BUKU PIKET GURU ${schoolName} TAHUN PELAJARAN ${tapel}</div>
+                            <div class="title">BUKU PIKET ${modeTitleLabel} ${schoolName} TAHUN PELAJARAN ${tapel}</div>
                             <div class="meta">
                                 <div>Hari, Tanggal : ${tanggalIndo}</div>
                                 <div>Semester : ${semester}</div>
@@ -6768,14 +6984,15 @@
                     const buttons = {
                         'reguler': document.getElementById('btn-lap-mode-reguler'),
                         'sumatif': document.getElementById('btn-lap-mode-sumatif'),
-                        'tka': document.getElementById('btn-lap-mode-tka')
+                        'tka': document.getElementById('btn-lap-mode-tka'),
+                        'btka': document.getElementById('btn-lap-mode-btka')
                     };
                     for (let key in buttons) {
                         const btn = buttons[key];
                         if (!btn) continue;
                         if (key === mode) {
                             btn.className = 'lap-mode-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm ' + 
-                                (mode === 'sumatif' ? 'text-amber-600' : (mode === 'tka' ? 'text-emerald-600' : 'text-primary'));
+                                (mode === 'sumatif' ? 'text-amber-600' : (mode === 'tka' ? 'text-emerald-600' : (mode === 'btka' ? 'text-cyan-600' : 'text-primary')));
                         } else {
                             btn.className = 'lap-mode-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
                         }
@@ -6796,6 +7013,11 @@
                         if (lblSakit) lblSakit.innerText = 'Total Sakit (TKA)';
                         if (lblIzin) lblIzin.innerText = 'Total Izin (TKA)';
                         if (lblAlpa) lblAlpa.innerText = 'Total Alpa (TKA)';
+                    } else if (mode === 'btka') {
+                        if (descEl) descEl.innerText = 'Menampilkan rekapitulasi presensi bimbingan TKA (Scan Barcode & Monitoring Piket).';
+                        if (lblSakit) lblSakit.innerText = 'Total Sakit (BTKA)';
+                        if (lblIzin) lblIzin.innerText = 'Total Izin (BTKA)';
+                        if (lblAlpa) lblAlpa.innerText = 'Total Alpa (BTKA)';
                     } else {
                         if (descEl) descEl.innerText = 'Menampilkan rekapitulasi ketidakhadiran kegiatan belajar mengajar harian reguler.';
                         if (lblSakit) lblSakit.innerText = 'Total Sakit';
@@ -6820,8 +7042,11 @@
                     } else if (this.sourceMode === 'tka') {
                         listAbsen = app.state.absen_tka || [];
                         modeTitle = 'Asesmen TKA';
+                    } else if (this.sourceMode === 'btka') {
+                        listAbsen = app.getBtkaAttendance();
+                        modeTitle = 'Presensi Bimbingan TKA';
                     }
-                    const isAsesmen = (this.sourceMode === 'sumatif' || this.sourceMode === 'tka');
+                    const isAsesmen = (this.sourceMode === 'sumatif' || this.sourceMode === 'tka' || this.sourceMode === 'btka');
 
                     const listSiswa = app.state.siswa || [];
                     
