@@ -2012,10 +2012,9 @@
         const DB = {
             isGAS: (typeof google !== 'undefined' && google.script && google.script.run),
 
-            // URL GAS SISKA — hardcode agar semua perangkat otomatis tahu tanpa perlu setting
-            // localStorage hanya sebagai override jika URL GAS berubah (deploy ulang)
-            GAS_API_URL: localStorage.getItem('db_gas_sync_url') ||
-                         'https://script.google.com/a/macros/guru.smp.belajar.id/s/AKfycby1niTmOwEtRdYPcUzKlQNFiejKfYOv2p67kdh0cGwVpcDkFHPXmm3BQ09-N_2bhoEh/exec',
+            // URL Sumber Data SISKA (bisa Link Google Spreadsheet atau URL Google Apps Script)
+            GAS_API_URL: (localStorage.getItem('db_gas_sync_url') ||
+                         'https://script.google.com/macros/s/AKfycby1niTmOwEtRdYPcUzKlQNFiejKfYOv2p67kdh0cGwVpcDkFHPXmm3BQ09-N_2bhoEh/exec').replace(/\/a\/macros\/[^\/]+\/s\//, '/macros/s/'),
 
             generateId: function() {
                 return 'ID' + Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -2433,56 +2432,32 @@
                     this.state.pengumuman    = JSON.parse(localStorage.getItem('db_pengumuman')    || '[]');
                     this.state.gurupiket     = JSON.parse(localStorage.getItem('db_gurupiket')     || '[]');
 
-                    // === SUMBER DATA UTAMA: GAS API ===
-                    // Jika URL GAS sudah dikonfigurasi → fetch sebagai sumber kebenaran tunggal
-                    // Data segar dari Spreadsheet menggantikan cache localStorage
+                    // === SUMBER DATA UTAMA (Spreadsheet / Apps Script) ===
                     const gasUrl = DB.GAS_API_URL;
                     if (gasUrl) {
                         try {
-                            const resp = await fetch(`${gasUrl}?action=getSiswaAndKelas`, {
-                                method: 'GET', redirect: 'follow'
-                            });
-                            if (resp.ok) {
-                                const rawText = await resp.text();
-                                let json;
-                                try {
-                                    json = JSON.parse(rawText);
-                                } catch (e) {
-                                    console.warn('[SISKA] GAS respons bukan JSON:', rawText.substring(0, 100));
-                                    window._gasSyncStatus = { 
-                                        ok: false, 
-                                        msg: 'Server Apps Script masih merespons HTML, bukan JSON. Kode Code.gs perlu di-Deploy Versi Baru di script.google.com.' 
-                                    };
-                                    return;
+                            const json = await app.siswa.fetchRemoteData(gasUrl);
+                            if (json && json.success) {
+                                if (json.kelas && json.kelas.length > 0) {
+                                    this.state.kelas = json.kelas;
+                                    localStorage.setItem('db_kelas', JSON.stringify(json.kelas));
                                 }
-
-                                if (json && json.success) {
-                                    // Data kelas dari Spreadsheet (replace penuh)
-                                    if (json.kelas && json.kelas.length > 0) {
-                                        this.state.kelas = json.kelas;
-                                        localStorage.setItem('db_kelas', JSON.stringify(json.kelas));
-                                    }
-                                    // Data siswa dari Spreadsheet (replace penuh)
-                                    if (json.siswa && json.siswa.length > 0) {
-                                        this.state.siswa = json.siswa;
-                                        localStorage.setItem('db_siswa', JSON.stringify(json.siswa));
-                                    }
-                                    // Simpan waktu terakhir sync
-                                    localStorage.setItem('db_last_sync', new Date().toISOString());
-                                    window._gasSyncStatus = { 
-                                        ok: true, 
-                                        msg: `${json.siswa ? json.siswa.length : 0} siswa & ${json.kelas ? json.kelas.length : 0} kelas berhasil dimuat` 
-                                    };
-                                    console.info('[SISKA] Auto-sync berhasil:', json.siswa ? json.siswa.length : 0, 'siswa');
-                                } else {
-                                    window._gasSyncStatus = { ok: false, msg: json ? json.message : 'Format respons tidak valid' };
+                                if (json.siswa && json.siswa.length > 0) {
+                                    this.state.siswa = json.siswa;
+                                    localStorage.setItem('db_siswa', JSON.stringify(json.siswa));
                                 }
+                                localStorage.setItem('db_last_sync', new Date().toISOString());
+                                window._gasSyncStatus = { 
+                                    ok: true, 
+                                    msg: `${json.siswa ? json.siswa.length : 0} siswa & ${json.kelas ? json.kelas.length : 0} kelas berhasil dimuat` 
+                                };
+                                console.info('[SISKA] Auto-sync berhasil:', json.siswa ? json.siswa.length : 0, 'siswa');
                             } else {
-                                window._gasSyncStatus = { ok: false, msg: `Server merespons status HTTP ${resp.status}` };
+                                window._gasSyncStatus = { ok: false, msg: json ? json.message : 'Format respons tidak valid' };
                             }
                         } catch (err) {
-                            console.warn('[SISKA] GAS tidak terjangkau, gunakan cache lokal:', err.message);
-                            window._gasSyncStatus = { ok: false, msg: `Gagal menghubungi server GAS: ${err.message}` };
+                            console.warn('[SISKA] Auto-sync gagal:', err.message);
+                            window._gasSyncStatus = { ok: false, msg: err.message };
                         }
                     }
                 }
@@ -3589,71 +3564,233 @@
                     document.body.removeChild(link);
                 },
 
+                cleanUrl: function(url) {
+                    if (!url) return '';
+                    return url.replace(/\/a\/macros\/[^\/]+\/s\//, '/macros/s/').trim();
+                },
+
+                parseSiswaCsv: function(rawText) {
+                    const lines = rawText.trim().split(/\r\n|\n/);
+                    if (lines.length < 2) return [];
+
+                    const firstLine = lines[0];
+                    const separator = firstLine.includes(';') ? ';' : ',';
+                    const headers = firstLine.split(separator).map(h => h.trim().replace(/^\"|\"$/g, '').toLowerCase().trim());
+
+                    const findCol = (...candidates) => {
+                        for (const c of candidates) {
+                            const idx = headers.indexOf(c.toLowerCase());
+                            if (idx !== -1) return idx;
+                        }
+                        return -1;
+                    };
+
+                    const iNis      = findCol('nis', 'no_nis', 'nomor_nis');
+                    const iNama     = findCol('nama', 'nama_siswa', 'nama siswa', 'name');
+                    const iJk       = findCol('jk', 'gender', 'jenis_kelamin', 'jenis kelamin', 'l/p');
+                    const iKelas    = findCol('kelas', 'id_kelas', 'kode_kelas', 'nama_kelas', 'kelas/ruang', 'kode kelas');
+                    const iOrtu     = findCol('nama_ortu', 'ortu', 'nama wali', 'nama ortu', 'wali', 'nama_wali');
+                    const iHp       = findCol('no_hp', 'hp', 'nomor hp ortu', 'no hp', 'no. hp', 'telp', 'telepon');
+                    const iStatus   = findCol('status_siswa', 'status', 'status siswa');
+                    const iAlasan   = findCol('alasan_tidak_aktif', 'alasan', 'keterangan');
+                    const iIdKelas  = findCol('id_kelas');
+
+                    const result = [];
+                    const listKelas = app.state.kelas || [];
+
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+
+                        const cols = line.split(separator).map(c => c.trim().replace(/^\"|\"$/g, ''));
+                        const nama = iNama !== -1 ? (cols[iNama] || '').trim() : '';
+                        if (!nama) continue;
+
+                        const nis   = iNis !== -1 ? (cols[iNis] || '').trim() : '';
+                        const jk    = iJk !== -1 ? (cols[iJk] || '').trim() : 'L';
+                        const ortu  = iOrtu !== -1 ? (cols[iOrtu] || '').trim() : '';
+                        const hp    = iHp !== -1 ? (cols[iHp] || '').trim() : '';
+                        const statusInput = iStatus !== -1 ? (cols[iStatus] || '').trim() : 'Aktif';
+                        const alasanInput = iAlasan !== -1 ? (cols[iAlasan] || '').trim() : '';
+
+                        let classId = null;
+                        const namaKelasInput = iKelas !== -1 ? (cols[iKelas] || '').trim() : '';
+                        const idKelasInput   = iIdKelas !== -1 ? (cols[iIdKelas] || '').trim() : '';
+
+                        if (idKelasInput) {
+                            const existK = listKelas.find(k => (k.id === idKelasInput || k.id_kelas === idKelasInput));
+                            classId = existK ? (existK.id || existK.id_kelas) : idKelasInput;
+                        } else if (namaKelasInput) {
+                            let targetKelas = listKelas.find(k =>
+                                (k.nama || k.nama_kelas || '').toLowerCase() === namaKelasInput.toLowerCase() ||
+                                (k.kode || k.kode_kelas || '').toLowerCase() === namaKelasInput.toLowerCase()
+                            );
+                            if (!targetKelas) {
+                                classId = DB.generateId();
+                                const newK = { id: classId, id_kelas: classId, kode: namaKelasInput, kode_kelas: namaKelasInput, nama: namaKelasInput, nama_kelas: namaKelasInput, wali: 'Wali Kelas ' + namaKelasInput, status: 'Aktif' };
+                                app.state.kelas.push(newK);
+                                listKelas.push(newK);
+                            } else {
+                                classId = targetKelas.id || targetKelas.id_kelas;
+                            }
+                        }
+
+                        const cleanNis = nis ? (parseInt(nis, 10) ? parseInt(nis, 10).toString() : nis) : '';
+                        const studentId = DB.generateId();
+
+                        result.push({
+                            id: studentId,
+                            id_siswa: studentId,
+                            nis: cleanNis,
+                            nama: nama,
+                            jk: (jk || '').toUpperCase() === 'P' ? 'P' : 'L',
+                            id_kelas: classId,
+                            ortu: ortu,
+                            nama_ortu: ortu,
+                            hp: hp,
+                            no_hp: hp,
+                            status_siswa: statusInput || 'Aktif',
+                            alasan_tidak_aktif: alasanInput || ''
+                        });
+                    }
+                    return result;
+                },
+
+                parseKelasCsv: function(rawText) {
+                    const lines = rawText.trim().split(/\r\n|\n/);
+                    if (lines.length < 2) return [];
+                    const firstLine = lines[0];
+                    const separator = firstLine.includes(';') ? ';' : ',';
+                    const headers = firstLine.split(separator).map(h => h.trim().replace(/^\"|\"$/g, '').toLowerCase().trim());
+                    const findCol = (...candidates) => {
+                        for (const c of candidates) {
+                            const idx = headers.indexOf(c.toLowerCase());
+                            if (idx !== -1) return idx;
+                        }
+                        return -1;
+                    };
+                    const iId   = findCol('id', 'id_kelas');
+                    const iKode = findCol('kode', 'kode_kelas');
+                    const iNama = findCol('nama', 'nama_kelas');
+                    const iWali = findCol('wali', 'wali_kelas');
+                    const iStat = findCol('status');
+
+                    const result = [];
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        const cols = line.split(separator).map(c => c.trim().replace(/^\"|\"$/g, ''));
+                        const nama = iNama !== -1 ? (cols[iNama] || '').trim() : '';
+                        if (!nama) continue;
+                        const id = iId !== -1 ? (cols[iId] || '').trim() : DB.generateId();
+                        const kode = iKode !== -1 ? (cols[iKode] || '').trim() : nama;
+                        const wali = iWali !== -1 ? (cols[iWali] || '').trim() : ('Wali Kelas ' + nama);
+                        const status = iStat !== -1 ? (cols[iStat] || 'Aktif').trim() : 'Aktif';
+                        result.push({ id, id_kelas: id, kode, kode_kelas: kode, nama, nama_kelas: nama, wali, wali_kelas: wali, status });
+                    }
+                    return result;
+                },
+
+                fetchRemoteData: async function(rawUrl) {
+                    if (!rawUrl) throw new Error('URL belum diisi');
+                    const clean = this.cleanUrl(rawUrl);
+
+                    // JALUR 1: LINK GOOGLE SPREADSHEET LANGSUNG (docs.google.com/spreadsheets/d/...)
+                    const ssMatch = clean.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+                    if (ssMatch) {
+                        const ssId = ssMatch[1];
+                        const sUrl = `https://docs.google.com/spreadsheets/d/${ssId}/gviz/tq?tqx=out:csv&sheet=Siswa`;
+                        const respS = await fetch(sUrl);
+                        if (!respS.ok) {
+                            throw new Error(`Google Spreadsheet tidak dapat diakses (HTTP ${respS.status}). Pastikan Bagikan (Share) disetel ke "Siapa saja yang memiliki link: Pelihat".`);
+                        }
+                        const csvS = await respS.text();
+                        let kelasList = [];
+                        try {
+                            const kUrl = `https://docs.google.com/spreadsheets/d/${ssId}/gviz/tq?tqx=out:csv&sheet=Kelas`;
+                            const respK = await fetch(kUrl);
+                            if (respK.ok) {
+                                const csvK = await respK.text();
+                                kelasList = this.parseKelasCsv(csvK);
+                            }
+                        } catch(e) {}
+
+                        const siswaList = this.parseSiswaCsv(csvS);
+                        if (siswaList.length === 0) {
+                            throw new Error('Data pada sheet "Siswa" kosong atau format kolom belum sesuai.');
+                        }
+                        return { success: true, siswa: siswaList, kelas: kelasList, type: 'spreadsheet' };
+                    }
+
+                    // JALUR 2: GOOGLE APPS SCRIPT WEB APP (.../exec)
+                    const apiUrl = clean.includes('?') ? clean : `${clean}?action=getSiswaAndKelas`;
+                    const resp = await fetch(apiUrl, { method: 'GET', redirect: 'follow' });
+                    if (!resp.ok) {
+                        throw new Error(`Server GAS merespons HTTP ${resp.status}`);
+                    }
+                    const text = await resp.text();
+                    let json;
+                    try {
+                        json = JSON.parse(text);
+                    } catch(e) {
+                        throw new Error('Server Apps Script mengembalikan HTML. Jika akun belajar.id Anda membatasi akses eksternal, gunakan Link Google Spreadsheet langsung.');
+                    }
+                    return json;
+                },
+
                 syncFromSpreadsheet: function() {
                     const savedUrl = localStorage.getItem('db_gas_sync_url') || '';
 
-                    // Tampilkan dialog konfigurasi + tombol sinkronisasi
                     Swal.fire({
-                        title: '<i class="fa-solid fa-arrows-rotate text-green-500 mr-2"></i> Sinkronisasi dari Spreadsheet',
+                        title: '<i class="fa-solid fa-arrows-rotate text-green-500 mr-2"></i> Sinkronisasi Spreadsheet',
                         html: `
                             <div class="text-left text-xs text-slate-700 space-y-3">
-                                <div class="bg-green-50 border border-green-200 rounded-xl p-3">
-                                    <p class="font-bold text-green-800 mb-1"><i class="fa-solid fa-bolt text-green-600 mr-1"></i> Sinkronisasi Otomatis via API</p>
-                                    <p class="text-green-700">Klik <b>Sinkronkan Sekarang</b> untuk mengambil data siswa langsung dari Google Spreadsheet SISKA.</p>
+                                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                                    <p class="font-bold text-emerald-800 mb-1"><i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i> Mendukung 2 Jenis Link:</p>
+                                    <ul class="list-disc list-inside text-emerald-700 space-y-0.5 text-[11px]">
+                                        <li><b>Link Google Spreadsheet langsung</b> (Rekomendasi Utama - Bebas kendala domain belajar.id)</li>
+                                        <li><b>URL Google Apps Script</b> (Web App /exec)</li>
+                                    </ul>
                                 </div>
                                 <div>
-                                    <label class="block font-bold text-slate-700 mb-1">URL Google Apps Script (GAS)</label>
+                                    <label class="block font-bold text-slate-700 mb-1">Link Google Spreadsheet ATAU URL Apps Script:</label>
                                     <input id="swal-gas-url" type="url" value="${savedUrl}"
-                                        placeholder="https://script.google.com/macros/s/.../exec"
+                                        placeholder="https://docs.google.com/spreadsheets/d/.../edit ATAU https://script.google.com/macros/s/.../exec"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-400">
-                                    <p class="text-[10px] text-slate-400 mt-1">URL ini adalah URL deploy GAS SISKA Anda. Disimpan otomatis setelah sync pertama.</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">Jika menggunakan Link Spreadsheet, pastikan menu <b>Bagikan (Share)</b> di Spreadsheet disetel ke <b>"Siapa saja yang memiliki link: Pelihat"</b>.</p>
                                 </div>
                                 <div id="swal-sync-status" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
-                                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                                    <p class="font-bold text-amber-700 mb-1"><i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i> Syarat agar sinkronisasi berfungsi:</p>
-                                    <ol class="list-decimal list-inside text-amber-600 space-y-0.5">
-                                        <li>GAS SISKA sudah di-deploy ulang setelah update kode terbaru</li>
-                                        <li>Deploy setting: <b>Execute as: Me</b>, <b>Who has access: Anyone</b></li>
-                                    </ol>
-                                </div>
                             </div>
                         `,
                         showCancelButton: true,
                         confirmButtonText: '<i class="fa-solid fa-arrows-rotate mr-1"></i> Sinkronkan Sekarang',
                         cancelButtonText: 'Batal',
                         confirmButtonColor: '#10b981',
-                        width: '520px',
+                        width: '540px',
                         showLoaderOnConfirm: true,
                         preConfirm: () => {
-                            const url = document.getElementById('swal-gas-url').value.trim();
-                            if (!url || !url.startsWith('https://')) {
-                                Swal.showValidationMessage('Masukkan URL GAS yang valid (https://...)');
+                            const rawInput = document.getElementById('swal-gas-url').value.trim();
+                            if (!rawInput || !rawInput.startsWith('https://')) {
+                                Swal.showValidationMessage('Masukkan URL yang valid (harus diawali https://)');
                                 return false;
                             }
-                            localStorage.setItem('db_gas_sync_url', url);
-                            DB.GAS_API_URL = url; // Update runtime agar langsung aktif
+                            
+                            const cleanedUrl = app.siswa.cleanUrl(rawInput);
+                            localStorage.setItem('db_gas_sync_url', cleanedUrl);
+                            DB.GAS_API_URL = cleanedUrl;
 
-                            // Tampilkan status loading
                             const statusEl = document.getElementById('swal-sync-status');
                             if (statusEl) {
                                 statusEl.className = 'p-3 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200';
-                                statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menghubungi server GAS...';
+                                statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Mengambil data dari server...';
                                 statusEl.classList.remove('hidden');
                             }
 
-                            // Fetch data siswa + kelas sekaligus
-                            return fetch(`${url}?action=getSiswaAndKelas`, {
-                                method: 'GET',
-                                redirect: 'follow'
-                            })
-                            .then(res => {
-                                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                                return res.json();
-                            })
+                            return app.siswa.fetchRemoteData(cleanedUrl)
+                            .then(res => res)
                             .catch(err => {
                                 Swal.showValidationMessage(
-                                    `<i class="fa-solid fa-circle-xmark mr-1"></i> Gagal terhubung: ${err.message}<br>
-                                    <span class="font-normal">Pastikan GAS sudah di-deploy ulang dan URL benar.</span>`
+                                    `<i class="fa-solid fa-circle-xmark mr-1"></i> ${err.message}`
                                 );
                                 return false;
                             });
@@ -3664,15 +3801,14 @@
 
                         const data = result.value;
                         if (!data.success) {
-                            Swal.fire({ icon: 'error', title: 'Respons API Error', text: data.message || 'Server GAS mengembalikan error.' });
+                            Swal.fire({ icon: 'error', title: 'Gagal Sinkronisasi', text: data.message || 'Format data tidak valid.' });
                             return;
                         }
 
                         let siswaCount = 0, kelasCount = 0, updatedCount = 0;
 
-                        // === Sinkronisasi DATA KELAS ===
+                        // Sinkronisasi Kelas
                         if (data.kelas && data.kelas.length > 0) {
-                            // Merge kelas: update yang sudah ada, tambah yang baru
                             const existingKelasMap = {};
                             (app.state.kelas || []).forEach(k => { existingKelasMap[k.id || k.id_kelas] = k; });
 
@@ -3685,7 +3821,7 @@
                             kelasCount = data.kelas.length;
                         }
 
-                        // === Sinkronisasi DATA SISWA ===
+                        // Sinkronisasi Siswa
                         if (data.siswa && data.siswa.length > 0) {
                             const existingMap = {};
                             (app.state.siswa || []).forEach(s => {
@@ -3697,11 +3833,9 @@
                                 const key = (s.nis || s.id || s.id_siswa || '').toString();
                                 if (!key) return;
                                 if (existingMap[key]) {
-                                    // Update data yang sudah ada
                                     Object.assign(existingMap[key], s);
                                     updatedCount++;
                                 } else {
-                                    // Tambah siswa baru
                                     existingMap[key] = s;
                                     siswaCount++;
                                 }
@@ -3711,18 +3845,18 @@
                             localStorage.setItem('db_siswa', JSON.stringify(app.state.siswa));
                         }
 
-                        // Refresh UI
                         app.siswa.renderTable();
                         app.propagateUIComponents();
                         app.dashboard.load();
 
                         const totalSiswa = app.state.siswa.length;
+                        const sourceText = data.type === 'spreadsheet' ? 'Google Spreadsheet langsung' : 'Google Apps Script API';
                         Swal.fire({
                             icon: 'success',
                             title: '✅ Sinkronisasi Berhasil!',
                             html: `
                                 <div class="text-sm text-slate-700 space-y-1">
-                                    <p>Data berhasil diambil dari Google Spreadsheet.</p>
+                                    <p>Data berhasil diambil via <b>${sourceText}</b>.</p>
                                     <div class="bg-gray-50 rounded-xl p-3 mt-3 text-left text-xs space-y-1">
                                         <div class="flex justify-between"><span>Siswa baru ditambahkan:</span><b class="text-green-600">${siswaCount} orang</b></div>
                                         <div class="flex justify-between"><span>Siswa diperbarui:</span><b class="text-blue-600">${updatedCount} orang</b></div>
