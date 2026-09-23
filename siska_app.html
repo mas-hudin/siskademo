@@ -2424,8 +2424,78 @@
                     this.state.absen_tka = JSON.parse(localStorage.getItem('db_absen_tka') || '[]');
                     this.state.pengumuman = JSON.parse(localStorage.getItem('db_pengumuman') || '[]');
                     this.state.gurupiket = JSON.parse(localStorage.getItem('db_gurupiket') || '[]');
+
+                    // === AUTO-SYNC DARI GAS (jika URL sudah dikonfigurasi) ===
+                    // Berjalan di background — data diperbarui tanpa perlu login ulang
+                    const gasUrl = localStorage.getItem('db_gas_sync_url');
+                    if (gasUrl) {
+                        // Jalankan fetch async tanpa await agar login tidak tertunda
+                        (async () => {
+                            try {
+                                const resp = await fetch(`${gasUrl}?action=getSiswaAndKelas`, {
+                                    method: 'GET', redirect: 'follow'
+                                });
+                                if (!resp.ok) return;
+                                const json = await resp.json();
+                                if (!json || !json.success) return;
+
+                                // Sinkronisasi kelas
+                                if (json.kelas && json.kelas.length > 0) {
+                                    const kelasMap = {};
+                                    (app.state.kelas || []).forEach(k => { kelasMap[k.id || k.id_kelas] = k; });
+                                    json.kelas.forEach(k => {
+                                        const kid = k.id || k.id_kelas;
+                                        if (kid) kelasMap[kid] = Object.assign(kelasMap[kid] || {}, k);
+                                    });
+                                    app.state.kelas = Object.values(kelasMap);
+                                    localStorage.setItem('db_kelas', JSON.stringify(app.state.kelas));
+                                }
+
+                                // Sinkronisasi siswa
+                                if (json.siswa && json.siswa.length > 0) {
+                                    const siswaMap = {};
+                                    (app.state.siswa || []).forEach(s => {
+                                        const key = (s.nis || s.id || s.id_siswa || '').toString();
+                                        if (key) siswaMap[key] = s;
+                                    });
+                                    json.siswa.forEach(s => {
+                                        const key = (s.nis || s.id || s.id_siswa || '').toString();
+                                        if (key) siswaMap[key] = Object.assign(siswaMap[key] || {}, s);
+                                    });
+                                    app.state.siswa = Object.values(siswaMap);
+                                    localStorage.setItem('db_siswa', JSON.stringify(app.state.siswa));
+                                }
+
+                                // Refresh UI secara diam-diam (tanpa popup)
+                                if (typeof app.siswa !== 'undefined' && typeof app.siswa.renderTable === 'function') {
+                                    app.siswa.renderTable();
+                                }
+                                app.propagateUIComponents();
+                                if (typeof app.dashboard !== 'undefined' && typeof app.dashboard.load === 'function') {
+                                    app.dashboard.load();
+                                }
+
+                                // Tampilkan notifikasi kecil di pojok (tidak mengganggu)
+                                const badge = document.createElement('div');
+                                badge.id = 'auto-sync-badge';
+                                badge.style.cssText = 'position:fixed;bottom:72px;right:16px;background:#10b981;color:#fff;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:6px;opacity:0;transition:opacity 0.4s;';
+                                badge.innerHTML = '<i class="fa-solid fa-check-circle"></i> Data tersinkronkan dari Spreadsheet';
+                                document.body.appendChild(badge);
+                                setTimeout(() => { badge.style.opacity = '1'; }, 50);
+                                setTimeout(() => {
+                                    badge.style.opacity = '0';
+                                    setTimeout(() => badge.remove(), 500);
+                                }, 3000);
+
+                            } catch (err) {
+                                // Gagal sync di background — tidak perlu tampilkan error, data dari localStorage tetap digunakan
+                                console.warn('[SISKA Auto-Sync] Gagal:', err.message);
+                            }
+                        })();
+                    }
                 }
             },
+
 
             propagateUIComponents: function() {
                 this.helper.populateSelectKelas('siswa-kelas');
