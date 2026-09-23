@@ -1,4 +1,4 @@
-const CACHE_NAME = 'siskademo';
+const CACHE_NAME = 'siskademo-v3';
 const ASSETS_TO_CACHE = [
   'index.html',
   'manifest.json',

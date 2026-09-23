@@ -66,6 +66,9 @@
     const iframe = document.getElementById('appFrame');
     const splash = document.getElementById('splash');
 
+    // Hindari cache usang di HP dengan parameter versi
+    iframe.src = 'siska_app.html?_t=' + Date.now();
+
     // Menghilangkan splash screen setelah iframe selesai memuat
     iframe.onload = function() {
       splash.classList.add('hidden');

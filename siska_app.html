@@ -2443,7 +2443,19 @@
                                 method: 'GET', redirect: 'follow'
                             });
                             if (resp.ok) {
-                                const json = await resp.json();
+                                const rawText = await resp.text();
+                                let json;
+                                try {
+                                    json = JSON.parse(rawText);
+                                } catch (e) {
+                                    console.warn('[SISKA] GAS respons bukan JSON:', rawText.substring(0, 100));
+                                    window._gasSyncStatus = { 
+                                        ok: false, 
+                                        msg: 'Server Apps Script masih merespons HTML, bukan JSON. Kode Code.gs perlu di-Deploy Versi Baru di script.google.com.' 
+                                    };
+                                    return;
+                                }
+
                                 if (json && json.success) {
                                     // Data kelas dari Spreadsheet (replace penuh)
                                     if (json.kelas && json.kelas.length > 0) {
@@ -2457,12 +2469,20 @@
                                     }
                                     // Simpan waktu terakhir sync
                                     localStorage.setItem('db_last_sync', new Date().toISOString());
-                                    console.info('[SISKA] Auto-sync berhasil:', json.siswa.length, 'siswa,', json.kelas.length, 'kelas');
+                                    window._gasSyncStatus = { 
+                                        ok: true, 
+                                        msg: `${json.siswa ? json.siswa.length : 0} siswa & ${json.kelas ? json.kelas.length : 0} kelas berhasil dimuat` 
+                                    };
+                                    console.info('[SISKA] Auto-sync berhasil:', json.siswa ? json.siswa.length : 0, 'siswa');
+                                } else {
+                                    window._gasSyncStatus = { ok: false, msg: json ? json.message : 'Format respons tidak valid' };
                                 }
+                            } else {
+                                window._gasSyncStatus = { ok: false, msg: `Server merespons status HTTP ${resp.status}` };
                             }
                         } catch (err) {
-                            // GAS tidak bisa dijangkau (offline / error) → pakai cache localStorage
                             console.warn('[SISKA] GAS tidak terjangkau, gunakan cache lokal:', err.message);
+                            window._gasSyncStatus = { ok: false, msg: `Gagal menghubungi server GAS: ${err.message}` };
                         }
                     }
                 }
@@ -2511,7 +2531,7 @@
                     if(userInitialsEl) userInitialsEl.innerText = "AD";
                 }
 
-                Swal.fire({ title: 'Menghubungkan...', text: 'Mengambil data...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                Swal.fire({ title: 'Menghubungkan...', text: 'Mengambil data dari Spreadsheet...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
                 await this.syncWithDatabase();
                 Swal.close();
 
@@ -2520,6 +2540,50 @@
                 this.renderRunningText();
                 this.propagateUIComponents();
                 this.checkFonnteConnection();
+
+                // Notifikasi feedback status sinkronisasi ke user
+                if (window._gasSyncStatus) {
+                    if (window._gasSyncStatus.ok) {
+                        const Toast = Swal.mixin({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                        Toast.fire({
+                            icon: 'success',
+                            title: 'Data Realtime Terhubung',
+                            text: window._gasSyncStatus.msg
+                        });
+                    } else if (window._gasSyncStatus.msg && (app.state.siswa || []).length <= 2) {
+                        // Tampilkan panduan jika data masih sampel dan sync gagal
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Sinkronisasi Realtime Spreadsheet',
+                            html: `
+                                <div class="text-left text-xs space-y-2.5 text-slate-700">
+                                    <p class="font-semibold text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                                        <i class="fa-solid fa-circle-exclamation mr-1"></i> ${window._gasSyncStatus.msg}
+                                    </p>
+                                    <p>Agar HP dan semua perangkat otomatis sinkron realtime dengan Google Spreadsheet:</p>
+                                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 space-y-1.5 text-blue-900 font-medium">
+                                        <p class="font-bold">Langkah Wajib di Google Apps Script (sekali saja):</p>
+                                        <ol class="list-decimal list-inside space-y-1 text-[11px]">
+                                            <li>Buka <b>script.google.com</b> di laptop</li>
+                                            <li>Buka project SISKA, salin isi <b>code gs siska demo.txt</b> ke file <b>Code.gs</b></li>
+                                            <li>Klik menu <b>Deploy → Kelola deployment (Manage deployments)</b></li>
+                                            <li>Klik ikon pensil ✏️ lalu pilih <b>Versi: Versi baru</b></li>
+                                            <li>Pastikan akses: <b>Siapa saja (Anyone)</b>, lalu klik <b>Deploy</b></li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonColor: '#0ea5e9',
+                            confirmButtonText: 'Saya Mengerti'
+                        });
+                    }
+                }
             },
 
             logout: function() {
